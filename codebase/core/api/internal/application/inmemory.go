@@ -25,7 +25,7 @@ type InMemoryServices struct {
 func NewInMemoryServices() *InMemoryServices {
 	state := &memoryState{}
 	return &InMemoryServices{
-		Dashboard: &dashboardMemoryService{},
+		Dashboard: &dashboardMemoryService{state: state},
 		Tenant:    &tenantMemoryService{state: state},
 		Model:     &modelMemoryService{state: state},
 		Provider:  &providerMemoryService{state: state},
@@ -63,7 +63,7 @@ func (s *memoryState) init() {
 	s.initialized = true
 }
 
-type dashboardMemoryService struct{}
+type dashboardMemoryService struct{ state *memoryState }
 
 func (s *dashboardMemoryService) GetGlobal(context.Context) (domain.DashboardGlobal, error) {
 	return domain.DashboardGlobal{
@@ -75,9 +75,45 @@ func (s *dashboardMemoryService) GetGlobal(context.Context) (domain.DashboardGlo
 	}, nil
 }
 
-func (s *dashboardMemoryService) ListTenants(_ context.Context, _ Pagination, _ string, _ string) ([]domain.DashboardTenantRow, error) {
-	// Dashboard rows are synthetic in memory mode.
-	return []domain.DashboardTenantRow{}, nil
+func (s *dashboardMemoryService) ListTenants(_ context.Context, pagination Pagination, plan, status string) ([]domain.DashboardTenantRow, error) {
+	s.state.mu.RLock()
+	defer s.state.mu.RUnlock()
+	s.state.init()
+
+	normalizedPlan := strings.TrimSpace(strings.ToLower(plan))
+	normalizedStatus := strings.TrimSpace(strings.ToLower(status))
+
+	rows := make([]domain.DashboardTenantRow, 0, len(s.state.tenants))
+	for _, tenant := range s.state.tenants {
+		row := domain.DashboardTenantRow{
+			TenantID:   tenant.IDInternal,
+			TenantName: tenant.Name,
+			Plan:       "free",
+			Status:     domain.TenantStatusActive,
+			Users:      0,
+			TokenUsage: "0",
+		}
+		if normalizedPlan != "" && strings.ToLower(row.Plan) != normalizedPlan {
+			continue
+		}
+		if normalizedStatus != "" && strings.ToLower(string(row.Status)) != normalizedStatus {
+			continue
+		}
+		rows = append(rows, row)
+	}
+
+	if pagination.Page <= 0 || pagination.PageSize <= 0 {
+		return rows, nil
+	}
+	start := (pagination.Page - 1) * pagination.PageSize
+	if start >= len(rows) {
+		return []domain.DashboardTenantRow{}, nil
+	}
+	end := start + pagination.PageSize
+	if end > len(rows) {
+		end = len(rows)
+	}
+	return rows[start:end], nil
 }
 
 type tenantMemoryService struct{ state *memoryState }

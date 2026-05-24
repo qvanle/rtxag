@@ -137,6 +137,8 @@ export const adminApi = {
   dashboardTenants: (plan?: string, status?: string) =>
     request<DashboardTenantRow[]>(`/dashboard/tenants${q({ page: 1, page_size: 100, plan, status })}`),
   listTenants: () => request<Tenant[]>(`/tenants${q({ page: 1, page_size: 100 })}`),
+  createTenant: (body: { id_internal: string; id_external: string; name: string }) =>
+    request<Tenant>("/tenants", { method: "POST", body: JSON.stringify(body) }),
 
   listModels: () => request<Model[]>("/models"),
   createModel: (body: { name: string; provider: string; version: string; status: Status }) =>

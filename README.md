@@ -13,17 +13,39 @@ Monorepo for RotexAI core services and admin interface.
 - Go (for `core/api` and `core/orm`)
 - PostgreSQL
 - Node.js and pnpm or bun (for `interface/admin`)
+- Docker Engine + Docker Compose (for containerized stack)
 
 ## Quick Start
 
-### 1) Run DB migrations
+### 1) Run with Docker (recommended)
+```bash
+cp docker/.env.example docker/.env
+docker compose -f docker/docker-compose.yml --env-file docker/.env up --build -d
+```
+
+Stop stack:
+```bash
+docker compose -f docker/docker-compose.yml --env-file docker/.env down
+```
+
+Services:
+- Admin UI: `http://localhost:3000`
+- Admin API: `http://localhost:8080`
+- LLMHub: `http://localhost:8003`
+- Postgres: `localhost:5432`
+- Qdrant HTTP: `localhost:6333`
+- Qdrant gRPC: `localhost:6334`
+
+### 2) Run locally (without Docker)
+
+#### 2.1) Run DB migrations
 ```bash
 cd codebase/core/orm
 export ROTEXAI_ORM_DSN='postgres://user:pass@localhost:5432/rotexai?sslmode=disable'
 go run ./cmd/orm-migrate
 ```
 
-### 2) Run Admin API
+#### 2.2) Run Admin API
 ```bash
 cd codebase/core/api
 export ADMIN_API_DB_DSN='postgres://user:pass@localhost:5432/rotexai?sslmode=disable'
@@ -35,7 +57,7 @@ Required request headers:
 - `Rotexai-User-Id`
 - `Rotexai-Tenant-Id` (for tenant-scope operations)
 
-### 3) Run Admin Interface
+#### 2.3) Run Admin Interface
 ```bash
 cd codebase/interface/admin
 pnpm install

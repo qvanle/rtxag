@@ -1,6 +1,7 @@
 import { createFileRoute } from "@tanstack/react-router";
 import { useState } from "react";
 import {
+  ActionButton,
   GlassCard,
   PageHeader,
   ScopeSwitcher,
@@ -8,7 +9,7 @@ import {
   DataTable,
 } from "@/components/admin/primitives";
 import { Activity, DollarSign, AlertTriangle, Gauge } from "lucide-react";
-import { adminApi, useAdminQuery } from "@/lib/admin-api";
+import { adminApi, useAdminMutation, useAdminQuery } from "@/lib/admin-api";
 
 export const Route = createFileRoute("/")({
   component: Dashboard,
@@ -40,10 +41,14 @@ function KpiTile({
 
 function Dashboard() {
   const [scope, setScope] = useState<"global" | "tenant">("global");
+  const [isAddingTenant, setIsAddingTenant] = useState(false);
+  const [tenantExternalId, setTenantExternalId] = useState("");
+  const [tenantName, setTenantName] = useState("");
   const globalQuery = useAdminQuery(["dashboard", "global"], adminApi.dashboardGlobal);
   const tenantsQuery = useAdminQuery(["dashboard", "tenants"], () =>
     adminApi.dashboardTenants(),
   );
+  const createTenant = useAdminMutation(adminApi.createTenant);
 
   if (globalQuery.isLoading || tenantsQuery.isLoading) {
     return <div className="text-sm text-muted-foreground">Loading dashboard...</div>;
@@ -62,13 +67,81 @@ function Dashboard() {
   const global = globalQuery.data;
   const tenants = tenantsQuery.data ?? [];
 
+  const toInternalTenantId = (externalId: string) => {
+    const slug = externalId
+      .trim()
+      .toLowerCase()
+      .replace(/[^a-z0-9]+/g, "_")
+      .replace(/^_+|_+$/g, "");
+    return slug ? `tenant_${slug}` : "";
+  };
+
+  const onSubmitTenant = () => {
+    const idExternal = tenantExternalId.trim();
+    const name = tenantName.trim();
+    if (!idExternal || !name) {
+      window.alert("External ID and Name are required");
+      return;
+    }
+
+    const idInternal = toInternalTenantId(idExternal);
+    if (!idInternal) {
+      window.alert("External ID must contain at least one letter or number");
+      return;
+    }
+
+    createTenant.mutate(
+      { id_internal: idInternal, id_external: idExternal, name },
+      {
+        onSuccess: () => {
+          setTenantExternalId("");
+          setTenantName("");
+          setIsAddingTenant(false);
+        },
+      },
+    );
+  };
+
   return (
     <div className="space-y-6">
       <PageHeader
         title="Dashboard"
         description="System observability across global infrastructure and tenant operations."
-        actions={<ScopeSwitcher value={scope} onChange={setScope} />}
+        actions={
+          <>
+            <ScopeSwitcher value={scope} onChange={setScope} />
+            <ActionButton variant="outline" onClick={() => setIsAddingTenant((v) => !v)}>
+              Add tenant
+            </ActionButton>
+          </>
+        }
       />
+
+      {isAddingTenant && (
+        <GlassCard className="space-y-3">
+          <div className="text-sm font-semibold">Add tenant</div>
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
+            <input
+              className="h-10 rounded-md border border-glass-border bg-transparent px-3 text-sm outline-none focus:border-primary"
+              placeholder="External ID"
+              value={tenantExternalId}
+              onChange={(event) => setTenantExternalId(event.target.value)}
+            />
+            <input
+              className="h-10 rounded-md border border-glass-border bg-transparent px-3 text-sm outline-none focus:border-primary"
+              placeholder="Name"
+              value={tenantName}
+              onChange={(event) => setTenantName(event.target.value)}
+            />
+            <ActionButton onClick={onSubmitTenant} disabled={createTenant.isPending}>
+              {createTenant.isPending ? "Creating..." : "Create"}
+            </ActionButton>
+          </div>
+          {!!createTenant.error && (
+            <div className="text-sm text-destructive">{(createTenant.error as Error).message}</div>
+          )}
+        </GlassCard>
+      )}
 
       {scope === "global" ? (
         <>
