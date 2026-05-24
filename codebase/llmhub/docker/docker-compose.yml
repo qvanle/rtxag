@@ -1,0 +1,24 @@
+services:
+  llmhub:
+    build:
+      context: .
+      dockerfile: docker/Dockerfile
+    environment:
+      MODE: ${MODE:-PROD}
+      AES_ENCRYPTION_KEY: ${AES_ENCRYPTION_KEY}
+      ICON_URL_PREFIX: ${HOST_URL}
+      PROJECT_ID: ${PROJECT_ID}
+    ports:
+      - "8003:8000"
+    healthcheck:
+      test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://localhost:8000/v1/health_check', timeout=5).read()"]
+      interval: 15s
+      timeout: 10s
+      retries: 5
+      start_period: 30s
+    restart: always
+
+networks:
+  default:
+    external: true
+    name: ${DOCKER_EXTERNAL_NETWORK}
