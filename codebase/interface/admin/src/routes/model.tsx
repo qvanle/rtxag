@@ -1,5 +1,5 @@
 import { createFileRoute } from "@tanstack/react-router";
-import { useState } from "react";
+import { useMemo, useState } from "react";
 import {
   ActionButton,
   DataTable,
@@ -7,16 +7,8 @@ import {
   PageHeader,
   StatusBadge,
 } from "@/components/admin/primitives";
-import { cn } from "@/lib/utils";
 import { Plus, KeyRound } from "lucide-react";
-import {
-  adminApi,
-  formatDate,
-  type Model,
-  type Provider,
-  useAdminMutation,
-  useAdminQuery,
-} from "@/lib/admin-api";
+import { adminApi, type Provider, useAdminMutation, useAdminQuery } from "@/lib/admin-api";
 import {
   Dialog,
   DialogContent,
@@ -30,262 +22,428 @@ export const Route = createFileRoute("/model")({
   component: ModelPage,
 });
 
-function ModelPage() {
-  const [tab, setTab] = useState<"models" | "providers">("models");
-  const [isCreateOpen, setIsCreateOpen] = useState(false);
-  const [modelForm, setModelForm] = useState({ name: "", provider: "", version: "", status: "active" as Model["status"] });
-  const [providerForm, setProviderForm] = useState({ name: "", environment: "production", priority: 1, api_key: "", enabled: true });
+type ModelFormState = {
+  provider_id: string;
+  name: string;
+  description: string;
+  base_url: string;
+  api_key: string;
+  resources: string;
+  icon_svg_url: string;
+  updated_timestamp: string;
+  enabled: boolean;
+};
 
-  const modelsQuery = useAdminQuery(["models"], adminApi.listModels);
-  const providersQuery = useAdminQuery(["providers"], adminApi.listProviders);
+type ProviderCatalogItem = {
+  id: string;
+  name: string;
+  description: string;
+  base_url: string;
+};
 
-  const createModel = useAdminMutation(adminApi.createModel);
-  const updateModel = useAdminMutation(({ id, body }: { id: string; body: any }) =>
-    adminApi.updateModel(id, body),
+const EMPTY_FORM: ModelFormState = {
+  provider_id: "",
+  name: "",
+  description: "",
+  base_url: "",
+  api_key: "",
+  resources: "",
+  icon_svg_url: "",
+  updated_timestamp: "",
+  enabled: true,
+};
+
+const PROVIDER_CATALOG: ProviderCatalogItem[] = [
+  { id: "openai", name: "OpenAI", description: "GPT and embedding models.", base_url: "https://api.openai.com/v1" },
+  { id: "anthropic", name: "Anthropic", description: "Claude model family.", base_url: "https://api.anthropic.com/v1" },
+  { id: "google_gemini", name: "Google Gemini", description: "Gemini models by Google.", base_url: "https://generativelanguage.googleapis.com/v1beta" },
+  { id: "azure_openai", name: "Azure OpenAI", description: "OpenAI models via Azure.", base_url: "https://{resource-name}.openai.azure.com/openai/v1" },
+  { id: "aws_bedrock", name: "AWS Bedrock", description: "Foundation models on AWS.", base_url: "https://bedrock-runtime.{region}.amazonaws.com" },
+  { id: "cohere", name: "Cohere", description: "Text generation and embeddings.", base_url: "https://api.cohere.com/v1" },
+  { id: "mistralai", name: "Mistral AI", description: "Mistral and Mixtral models.", base_url: "https://api.mistral.ai/v1" },
+  { id: "groq", name: "Groq", description: "Low-latency model serving.", base_url: "https://api.groq.com/openai/v1" },
+  { id: "togetherai", name: "TogetherAI", description: "Hosted open-weight models.", base_url: "https://api.together.xyz/v1" },
+  { id: "ollama", name: "Ollama", description: "Run local models.", base_url: "http://localhost:11434/v1" },
+  { id: "ai21", name: "AI21", description: "Language models by AI21 Labs.", base_url: "https://api.ai21.com/studio/v1" },
+  { id: "baichuan", name: "Baichuan", description: "Baichuan model provider.", base_url: "https://api.baichuan-ai.com/v1" },
+  { id: "hugging_face", name: "Hugging Face", description: "Inference and hosted models.", base_url: "https://api-inference.huggingface.co" },
+  { id: "hugging_face_inference_endpoint", name: "HF Inference Endpoint", description: "Dedicated HF endpoints.", base_url: "https://api-inference.huggingface.co" },
+  { id: "jina", name: "Jina", description: "Jina AI embedding and retrieval APIs.", base_url: "https://api.jina.ai/v1" },
+  { id: "llama_api", name: "Llama API", description: "Hosted Llama-family APIs.", base_url: "https://api.llama-api.com" },
+  { id: "lm_studio", name: "LM Studio", description: "Local LM Studio endpoint.", base_url: "http://localhost:1234/v1" },
+  { id: "localai", name: "LocalAI", description: "Self-hosted OpenAI-compatible runtime.", base_url: "http://localhost:8080/v1" },
+  { id: "minimax", name: "MiniMax", description: "MiniMax model APIs.", base_url: "https://api.minimax.chat/v1" },
+  { id: "moonshot", name: "Moonshot", description: "Moonshot AI models.", base_url: "https://api.moonshot.ai/v1" },
+  { id: "replicate", name: "Replicate", description: "Model inference platform.", base_url: "https://api.replicate.com/v1" },
+  { id: "tongyi", name: "Tongyi", description: "Alibaba Tongyi model family.", base_url: "https://dashscope.aliyuncs.com/api/v1" },
+  { id: "wenxin", name: "Wenxin", description: "Baidu Wenxin model family.", base_url: "https://aip.baidubce.com" },
+  { id: "yi", name: "Yi", description: "01.AI Yi model family.", base_url: "https://api.lingyiwanwu.com/v1" },
+  { id: "zhipu", name: "Zhipu", description: "GLM models by Zhipu AI.", base_url: "https://open.bigmodel.cn/api/paas/v4" },
+];
+
+function FieldLabel({ children, required = false }: { children: string; required?: boolean }) {
+  return (
+    <label className="mb-1.5 block text-sm font-medium text-foreground/95">
+      {children}
+      {required && <span className="ml-1 text-destructive">*</span>}
+    </label>
   );
-  const deleteModel = useAdminMutation((id: string) => adminApi.deleteModel(id));
+}
 
+function fieldClass() {
+  return "h-11 w-full rounded-md border border-glass-border bg-transparent px-3 text-sm outline-none transition-shadow focus-visible:ring-0 focus-visible:shadow-[0_0_0_3px_rgba(120,160,255,0.2)]";
+}
+
+function resolveProviderIconURL(providerID: string): string {
+  return `https://oapi.tasking.ai/images/providers/icons/${providerID}.svg`;
+}
+
+function resolveProviderBaseURL(providerID: string): string {
+  return PROVIDER_CATALOG.find((p) => p.id === providerID)?.base_url ?? "";
+}
+
+function ModelPage() {
+  const [isCreateOpen, setIsCreateOpen] = useState(false);
+  const [createStep, setCreateStep] = useState<1 | 2>(1);
+  const [form, setForm] = useState<ModelFormState>(EMPTY_FORM);
+  const [editTarget, setEditTarget] = useState<Provider | null>(null);
+  const [deleteTarget, setDeleteTarget] = useState<Provider | null>(null);
+
+  const providersQuery = useAdminQuery(["providers"], adminApi.listProviders);
   const createProvider = useAdminMutation(adminApi.createProvider);
   const updateProvider = useAdminMutation(({ id, body }: { id: string; body: any }) =>
     adminApi.updateProvider(id, body),
   );
-  const toggleProvider = useAdminMutation((id: string) => adminApi.toggleProvider(id));
-  const reorderProviders = useAdminMutation((ids: string[]) => adminApi.reorderProviders(ids));
+  const deleteProvider = useAdminMutation((id: string) => adminApi.deleteProvider(id));
 
-  const error = (modelsQuery.error as Error | undefined)?.message ??
-    (providersQuery.error as Error | undefined)?.message;
-
-  const models = modelsQuery.data ?? [];
   const providers = providersQuery.data ?? [];
+  const knownProviderIDs = useMemo(() => new Set(PROVIDER_CATALOG.map((p) => p.id)), []);
 
-  const onAddModel = () => {
-    if (!modelForm.name.trim()) return;
-    createModel.mutate(
-      { name: modelForm.name.trim(), provider: modelForm.provider.trim(), version: modelForm.version.trim(), status: modelForm.status },
-      {
-        onSuccess: () => {
-          setIsCreateOpen(false);
-          setModelForm({ name: "", provider: "", version: "", status: "active" });
-        },
-      },
-    );
+  const isCreateValid = useMemo(
+    () => !!form.provider_id.trim() && !!form.name.trim(),
+    [form.provider_id, form.name],
+  );
+
+  const openCreate = () => {
+    setForm(EMPTY_FORM);
+    setCreateStep(1);
+    setIsCreateOpen(true);
   };
 
-  const onEditModel = (m: Model) => {
-    const name = window.prompt("Model name", m.name);
-    if (!name) return;
-    const provider = window.prompt("Provider", m.provider) ?? m.provider;
-    const version = window.prompt("Version", m.version) ?? m.version;
-    const status = (window.prompt("Status (active|draft|deprecated|archived)", m.status) ?? m.status) as Model["status"];
-    updateModel.mutate({ id: m.id, body: { name, provider, version, status } });
-  };
-
-  const onAddProvider = () => {
-    if (!providerForm.name.trim()) return;
+  const onCreateModel = () => {
+    if (!isCreateValid) {
+      return;
+    }
+    const updatedTimestamp = Date.now();
     createProvider.mutate(
       {
-        name: providerForm.name.trim(),
-        environment: providerForm.environment,
-        priority: Number(providerForm.priority) || 1,
-        api_key: providerForm.api_key.trim() || "dev-key",
-        enabled: providerForm.enabled,
+        provider_id: form.provider_id.trim(),
+        name: form.name.trim(),
+        description: form.description.trim(),
+        base_url: resolveProviderBaseURL(form.provider_id.trim()) || undefined,
+        api_key: form.api_key.trim() || undefined,
+        icon_svg_url: resolveProviderIconURL(form.provider_id.trim()),
+        updated_timestamp: updatedTimestamp,
+        enabled: form.enabled,
       },
       {
         onSuccess: () => {
           setIsCreateOpen(false);
-          setProviderForm({ name: "", environment: "production", priority: 1, api_key: "", enabled: true });
+          setCreateStep(1);
+          setForm(EMPTY_FORM);
         },
       },
     );
   };
 
-  const onEditProvider = (p: Provider) => {
-    const name = window.prompt("Provider name", p.name);
-    if (!name) return;
-    const environment = window.prompt("Environment (production|staging)", p.environment) ?? p.environment;
-    const priority = Number(window.prompt("Priority", String(p.priority)) ?? p.priority);
-    const api_key = window.prompt("API key (used for update payload)", "updated-key") ?? "updated-key";
-    const enabled = (window.prompt("Enabled? (true|false)", String(p.enabled)) ?? String(p.enabled)) === "true";
-    updateProvider.mutate({ id: p.id, body: { name, environment, priority, api_key, enabled } });
+  const onOpenEdit = (p: Provider) => {
+    setEditTarget(p);
+    setForm({
+      provider_id: p.provider_id,
+      name: p.name,
+      description: p.description ?? "",
+      base_url: p.base_url ?? "",
+      api_key: "",
+      resources: p.resources ?? "",
+      icon_svg_url: p.icon_svg_url ?? "",
+      updated_timestamp: p.updated_timestamp ? String(p.updated_timestamp) : "",
+      enabled: p.enabled,
+    });
   };
+
+  const onSubmitEdit = () => {
+    if (!editTarget || !isCreateValid) {
+      return;
+    }
+    const updatedTimestamp = Date.now();
+    updateProvider.mutate(
+      {
+        id: editTarget.id,
+        body: {
+          provider_id: form.provider_id.trim(),
+          name: form.name.trim(),
+          description: form.description.trim(),
+          base_url: resolveProviderBaseURL(form.provider_id.trim()) || undefined,
+          api_key: form.api_key.trim() || undefined,
+          icon_svg_url: resolveProviderIconURL(form.provider_id.trim()),
+          updated_timestamp: updatedTimestamp,
+          enabled: form.enabled,
+        },
+      },
+      {
+        onSuccess: () => {
+          setEditTarget(null);
+          setForm(EMPTY_FORM);
+        },
+      },
+    );
+  };
+
+  const selectedProviderPreview = providers.find((p) => p.provider_id === form.provider_id) ?? null;
+  const selectedCatalogProvider = PROVIDER_CATALOG.find((p) => p.id === form.provider_id) ?? null;
 
   return (
     <div className="space-y-6">
       <PageHeader
         title="Models"
-        description="Central registry of foundation models and the providers that serve them."
+        description="Model catalog and connection metadata."
         actions={
-          <ActionButton onClick={() => setIsCreateOpen(true)}>
-            <Plus className="h-4 w-4" />
-            {tab === "models" ? "Add Model" : "Add Provider"}
+          <ActionButton onClick={openCreate}>
+            <Plus className="h-4 w-4" /> Add Model
           </ActionButton>
         }
       />
 
-      {!!error && <div className="text-sm text-destructive">{error}</div>}
       <Dialog open={isCreateOpen} onOpenChange={setIsCreateOpen}>
-        <DialogContent className="glass border-glass-border bg-gradient-to-b from-background to-muted/30 sm:max-w-md">
+        <DialogContent className="glass border-glass-border bg-gradient-to-b from-background to-muted/30 max-h-[90vh] overflow-y-auto w-[80vw] max-w-[80vw]">
           <DialogHeader>
-            <DialogTitle>{tab === "models" ? "Create Model" : "Create Provider"}</DialogTitle>
+            <DialogTitle>Create Model</DialogTitle>
             <DialogDescription>
-              {tab === "models" ? "Register a new model in the catalog." : "Add a provider endpoint for model routing."}
+              {createStep === 1
+                ? "Step 1 of 2: Select a provider code for this model."
+                : "Step 2 of 2: Enter model metadata and connection settings."}
             </DialogDescription>
           </DialogHeader>
-          {tab === "models" ? (
-            <div className="space-y-4">
-              <div className="space-y-1.5">
-                <label className="text-xs font-medium text-foreground/90">Model name <span className="text-destructive">*</span></label>
+
+          {createStep === 1 ? (
+            <div className="space-y-3">
+              <FieldLabel required>Select Provider</FieldLabel>
+              <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 xl:grid-cols-6">
+                {PROVIDER_CATALOG.map((p) => (
+                  <button
+                    key={p.id}
+                    type="button"
+                    onClick={() => setForm((v) => ({ ...v, provider_id: p.id }))}
+                    className={`rounded-lg border p-3 text-left transition ${form.provider_id === p.id
+                      ? "border-primary bg-primary/10"
+                      : "border-glass-border bg-background/40 hover:bg-accent/40"
+                      }`}
+                  >
+                    <div className="flex items-center gap-2 font-medium">
+                      <img
+                        src={resolveProviderIconURL(p.id)}
+                        alt=""
+                        className="h-4 w-4 shrink-0"
+                        onError={(e) => {
+                          e.currentTarget.style.display = "none";
+                        }}
+                      />
+                      <span>{p.name}</span>
+                    </div>
+                    <div className="mt-1 text-xs text-muted-foreground">{p.id}</div>
+                    <div className="mt-2 line-clamp-2 text-xs text-foreground/75">{p.description}</div>
+                  </button>
+                ))}
+              </div>
+              <div className="pt-1">
+                <FieldLabel>Custom Provider Code (Optional)</FieldLabel>
                 <input
-                  className="h-11 w-full rounded-md border border-glass-border bg-transparent px-3 text-sm outline-none transition focus:border-primary/50 focus:ring-2 focus:ring-primary/30"
-                  placeholder="e.g., GPT-4, Claude 3"
-                  value={modelForm.name}
-                  onChange={(e) => setModelForm((v) => ({ ...v, name: e.target.value }))}
+                  className={fieldClass()}
+                  placeholder="Use only if your provider is not listed above"
+                  value={knownProviderIDs.has(form.provider_id) ? "" : form.provider_id}
+                  onChange={(e) => setForm((v) => ({ ...v, provider_id: e.target.value.trim() }))}
                 />
-              </div>
-              <div className="space-y-1.5">
-                <label className="text-xs font-medium text-foreground/90">Provider <span className="text-destructive">*</span></label>
-                <select
-                  className="h-11 w-full rounded-md border border-glass-border bg-background px-3 text-sm outline-none transition focus:border-primary/50 focus:ring-2 focus:ring-primary/30"
-                  value={modelForm.provider}
-                  onChange={(e) => setModelForm((v) => ({ ...v, provider: e.target.value }))}
-                >
-                  <option value="">Select provider</option>
-                  {providers.map((p) => (
-                    <option key={p.id} value={p.name}>{p.name}</option>
-                  ))}
-                </select>
-              </div>
-              <div className="space-y-1.5">
-                <label className="text-xs font-medium text-foreground/90">Version <span className="text-destructive">*</span></label>
-                <input
-                  className="h-11 w-full rounded-md border border-glass-border bg-transparent px-3 text-sm outline-none transition focus:border-primary/50 focus:ring-2 focus:ring-primary/30"
-                  placeholder="e.g., 2024-11-20"
-                  value={modelForm.version}
-                  onChange={(e) => setModelForm((v) => ({ ...v, version: e.target.value }))}
-                />
-              </div>
-              <div className="space-y-1.5">
-                <label className="text-xs font-medium text-foreground/90">Status <span className="text-destructive">*</span></label>
-                <select
-                  className="h-11 w-full rounded-md border border-glass-border bg-background px-3 text-sm outline-none transition focus:border-primary/50 focus:ring-2 focus:ring-primary/30"
-                  value={modelForm.status}
-                  onChange={(e) => setModelForm((v) => ({ ...v, status: e.target.value as Model["status"] }))}
-                >
-                  <option value="active">active</option>
-                  <option value="draft">draft</option>
-                  <option value="deprecated">deprecated</option>
-                  <option value="archived">archived</option>
-                </select>
               </div>
             </div>
           ) : (
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
-              <input className="h-10 rounded-md border border-glass-border bg-transparent px-3 text-sm" placeholder="Provider name" value={providerForm.name} onChange={(e) => setProviderForm((v) => ({ ...v, name: e.target.value }))} />
-              <select className="h-10 rounded-md border border-glass-border bg-background px-3 text-sm" value={providerForm.environment} onChange={(e) => setProviderForm((v) => ({ ...v, environment: e.target.value }))}>
-                <option value="production">production</option>
-                <option value="staging">staging</option>
-              </select>
-              <input className="h-10 rounded-md border border-glass-border bg-transparent px-3 text-sm" placeholder="Priority" type="number" value={providerForm.priority} onChange={(e) => setProviderForm((v) => ({ ...v, priority: Number(e.target.value) }))} />
-              <input className="h-10 rounded-md border border-glass-border bg-transparent px-3 text-sm" placeholder="API key" value={providerForm.api_key} onChange={(e) => setProviderForm((v) => ({ ...v, api_key: e.target.value }))} />
+            <div className="space-y-3">
+              <div className="rounded-md border border-glass-border bg-background/40 px-3 py-2 text-xs text-muted-foreground">
+                Selected provider code: <span className="font-medium text-foreground">{form.provider_id}</span>
+                {selectedCatalogProvider && <span> ({selectedCatalogProvider.name})</span>}
+                {!selectedCatalogProvider && selectedProviderPreview && <span> ({selectedProviderPreview.name})</span>}
+              </div>
+              <div>
+                <FieldLabel required>Model Name</FieldLabel>
+                <input className={fieldClass()} placeholder="e.g., GPT-4o" value={form.name} onChange={(e) => setForm((v) => ({ ...v, name: e.target.value }))} />
+              </div>
+              <div>
+                <FieldLabel>Description</FieldLabel>
+                <input className={fieldClass()} placeholder="Model description" value={form.description} onChange={(e) => setForm((v) => ({ ...v, description: e.target.value }))} />
+              </div>
+              <div>
+                <FieldLabel>Base URL (Auto)</FieldLabel>
+                <input className={fieldClass()} value={resolveProviderBaseURL(form.provider_id.trim())} readOnly />
+              </div>
+              <div>
+                <FieldLabel>API Key</FieldLabel>
+                <input className={fieldClass()} placeholder="sk-..." type="password" value={form.api_key} onChange={(e) => setForm((v) => ({ ...v, api_key: e.target.value }))} />
+              </div>
+              <label className="inline-flex items-center gap-2 text-sm">
+                <input type="checkbox" checked={form.enabled} onChange={(e) => setForm((v) => ({ ...v, enabled: e.target.checked }))} />
+                Enabled
+              </label>
             </div>
           )}
+
           <DialogFooter className="mt-2 border-t border-glass-border/70 pt-4">
+            {createStep === 2 && (
+              <ActionButton variant="ghost" onClick={() => setCreateStep(1)}>
+                Back
+              </ActionButton>
+            )}
             <ActionButton variant="ghost" onClick={() => setIsCreateOpen(false)}>Cancel</ActionButton>
-            <ActionButton className="h-11" onClick={tab === "models" ? onAddModel : onAddProvider} disabled={createModel.isPending || createProvider.isPending}>
-              {tab === "models" ? "Create Model" : "Create Provider"}
+            {createStep === 1 ? (
+              <ActionButton onClick={() => setCreateStep(2)} disabled={!form.provider_id.trim()}>
+                Next
+              </ActionButton>
+            ) : (
+              <ActionButton className="h-11" onClick={onCreateModel} disabled={createProvider.isPending || !isCreateValid}>
+                Create Model
+              </ActionButton>
+            )}
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      <Dialog open={!!editTarget} onOpenChange={(open) => !open && setEditTarget(null)}>
+        <DialogContent className="glass border-glass-border bg-gradient-to-b from-background to-muted/30 max-h-[90vh] overflow-y-auto w-[80vw] max-w-[80vw]">
+          <DialogHeader>
+            <DialogTitle>Edit Model</DialogTitle>
+            <DialogDescription>Update model metadata and API key. Leave API key empty to keep current value.</DialogDescription>
+          </DialogHeader>
+          <div className="space-y-3">
+            <div>
+              <FieldLabel required>Select Provider</FieldLabel>
+              <div className="grid grid-cols-1 gap-2 sm:grid-cols-2">
+                {PROVIDER_CATALOG.map((p) => (
+                  <button
+                    key={p.id}
+                    type="button"
+                    onClick={() => setForm((v) => ({ ...v, provider_id: p.id }))}
+                    className={`rounded-md border p-2 text-left transition ${form.provider_id === p.id
+                      ? "border-primary bg-primary/10"
+                      : "border-glass-border bg-background/40 hover:bg-accent/40"
+                      }`}
+                  >
+                    <div className="flex items-center gap-2 text-sm font-medium">
+                      <img
+                        src={resolveProviderIconURL(p.id)}
+                        alt=""
+                        className="h-4 w-4 shrink-0"
+                        onError={(e) => {
+                          e.currentTarget.style.display = "none";
+                        }}
+                      />
+                      <span>{p.name}</span>
+                    </div>
+                    <div className="text-xs text-muted-foreground">{p.id}</div>
+                  </button>
+                ))}
+              </div>
+            </div>
+            <div>
+              <FieldLabel>Custom Provider Code (Optional)</FieldLabel>
+              <input
+                className={fieldClass()}
+                placeholder="Use only if not listed"
+                value={knownProviderIDs.has(form.provider_id) ? "" : form.provider_id}
+                onChange={(e) => setForm((v) => ({ ...v, provider_id: e.target.value.trim() }))}
+              />
+            </div>
+            <div>
+              <FieldLabel required>Model Name</FieldLabel>
+              <input className={fieldClass()} value={form.name} onChange={(e) => setForm((v) => ({ ...v, name: e.target.value }))} />
+            </div>
+            <div>
+              <FieldLabel>Description</FieldLabel>
+              <input className={fieldClass()} value={form.description} onChange={(e) => setForm((v) => ({ ...v, description: e.target.value }))} />
+            </div>
+            <div>
+              <FieldLabel>Base URL (Auto)</FieldLabel>
+              <input className={fieldClass()} value={resolveProviderBaseURL(form.provider_id.trim())} readOnly />
+            </div>
+            <div>
+              <FieldLabel>API Key</FieldLabel>
+              <input className={fieldClass()} type="password" placeholder="Leave empty to keep current" value={form.api_key} onChange={(e) => setForm((v) => ({ ...v, api_key: e.target.value }))} />
+            </div>
+            <label className="inline-flex items-center gap-2 text-sm">
+              <input type="checkbox" checked={form.enabled} onChange={(e) => setForm((v) => ({ ...v, enabled: e.target.checked }))} />
+              Enabled
+            </label>
+          </div>
+          <DialogFooter className="mt-2 border-t border-glass-border/70 pt-4">
+            <ActionButton variant="ghost" onClick={() => setEditTarget(null)}>Cancel</ActionButton>
+            <ActionButton onClick={onSubmitEdit} disabled={updateProvider.isPending || !isCreateValid}>Save</ActionButton>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      <Dialog open={!!deleteTarget} onOpenChange={(open) => !open && setDeleteTarget(null)}>
+        <DialogContent className="glass border-glass-border bg-gradient-to-b from-background to-muted/30 w-[80vw] max-w-[80vw]">
+          <DialogHeader>
+            <DialogTitle>Delete Model</DialogTitle>
+            <DialogDescription>
+              Delete <span className="font-medium text-foreground">{deleteTarget?.name}</span>? This action cannot be undone.
+            </DialogDescription>
+          </DialogHeader>
+          <DialogFooter>
+            <ActionButton variant="ghost" onClick={() => setDeleteTarget(null)}>Cancel</ActionButton>
+            <ActionButton
+              onClick={() => {
+                if (!deleteTarget) return;
+                deleteProvider.mutate(deleteTarget.id, {
+                  onSuccess: () => setDeleteTarget(null),
+                });
+              }}
+              disabled={deleteProvider.isPending}
+            >
+              Delete
             </ActionButton>
           </DialogFooter>
         </DialogContent>
       </Dialog>
 
-      <div className="inline-flex p-1 rounded-lg glass border border-glass-border">
-        {(["models", "providers"] as const).map((t) => (
-          <button
-            key={t}
-            onClick={() => setTab(t)}
-            className={cn(
-              "px-4 py-1.5 text-xs font-medium rounded-md capitalize transition-all",
-              tab === t
-                ? "bg-gradient-primary text-primary-foreground shadow-glow"
-                : "text-muted-foreground hover:text-foreground",
-            )}
-          >
-            {t}
-          </button>
-        ))}
-      </div>
-
-      {tab === "models" ? (
-        <GlassCard className="p-0 overflow-hidden">
-          <DataTable
-            columns={["Name", "Provider", "Version", "Status", "Updated", "Actions"]}
-            rows={models.map((m) => [
-              <span key="n" className="font-medium">{m.name}</span>,
-              <span key="p" className="text-foreground/80">{m.provider}</span>,
-              <span key="v" className="tabular-nums text-muted-foreground">{m.version}</span>,
-              <StatusBadge key="s" status={m.status} />,
-              <span key="u" className="text-muted-foreground tabular-nums">{formatDate(m.updated_at)}</span>,
-              <div key="a" className="flex gap-2">
-                <ActionButton variant="outline" className="text-xs" onClick={() => onEditModel(m)}>Edit</ActionButton>
-                <ActionButton
-                  variant="ghost"
-                  className="text-xs"
-                  onClick={() => {
-                    if (window.confirm(`Delete model ${m.name}?`)) {
-                      deleteModel.mutate(m.id);
-                    }
+      <GlassCard className="overflow-hidden p-0">
+        <DataTable
+          columns={["Model", "Code", "Base URL", "Status", "Actions"]}
+          rows={providers.map((p) => [
+            <div key="n" className="flex items-center gap-2 font-medium">
+              <div className="grid h-7 w-7 place-items-center rounded-md bg-gradient-primary">
+                <img
+                  src={resolveProviderIconURL(p.provider_id)}
+                  alt=""
+                  className="h-4 w-4 shrink-0"
+                  onError={(e) => {
+                    e.currentTarget.style.display = "none";
                   }}
-                >
-                  Delete
-                </ActionButton>
-              </div>,
-            ])}
-          />
-        </GlassCard>
-      ) : (
-        <GlassCard className="p-0 overflow-hidden">
-          <div className="px-5 py-4 border-b border-glass-border flex items-center justify-between">
-            <div>
-              <div className="text-sm font-semibold">Provider routing</div>
-              <div className="text-xs text-muted-foreground">
-                Enable or disable providers for fallback routing.
+                />
               </div>
-            </div>
-            <ActionButton
-              variant="outline"
-              className="text-xs"
-              onClick={() => reorderProviders.mutate([...providers].sort((a, b) => a.priority - b.priority).map((p) => p.id))}
-            >
-              Normalize Priority
-            </ActionButton>
-          </div>
-          <DataTable
-            columns={["Provider", "Environment", "Priority", "API Key", "Status", "Actions"]}
-            rows={providers.map((p) => [
-              <div key="n" className="flex items-center gap-2 font-medium">
-                <div className="h-7 w-7 rounded-md bg-gradient-primary grid place-items-center">
-                  <KeyRound className="h-3.5 w-3.5 text-primary-foreground" />
-                </div>
-                {p.name}
-              </div>,
-              <span key="e" className="capitalize text-foreground/80">{p.environment}</span>,
-              <span key="pr" className="tabular-nums">#{p.priority}</span>,
-              <code key="k" className="text-xs font-mono text-muted-foreground bg-muted/40 px-2 py-1 rounded">
-                {p.api_key_masked}
-              </code>,
-              <StatusBadge key="s" status={p.enabled ? "enabled" : "disabled"} />,
-              <div key="a" className="flex gap-2">
-                <ActionButton variant="outline" className="text-xs" onClick={() => toggleProvider.mutate(p.id)}>
-                  {p.enabled ? "Disable" : "Enable"}
-                </ActionButton>
-                <ActionButton variant="ghost" className="text-xs" onClick={() => onEditProvider(p)}>
-                  Edit
-                </ActionButton>
-              </div>,
-            ])}
-          />
-        </GlassCard>
-      )}
+              {p.name}
+            </div>,
+            <span key="c" className="text-foreground/80">{p.provider_id}</span>,
+            <span key="b" className="text-muted-foreground">{p.base_url ?? "-"}</span>,
+            <StatusBadge key="s" status={p.enabled ? "enabled" : "disabled"} />,
+            <div key="a" className="flex gap-2">
+              <ActionButton variant="ghost" className="text-xs" onClick={() => onOpenEdit(p)}>
+                Edit
+              </ActionButton>
+              <ActionButton variant="ghost" className="text-xs" onClick={() => setDeleteTarget(p)}>
+                Delete
+              </ActionButton>
+            </div>,
+          ])}
+        />
+      </GlassCard>
     </div>
   );
 }

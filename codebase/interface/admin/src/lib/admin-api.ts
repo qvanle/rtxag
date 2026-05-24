@@ -32,22 +32,17 @@ export type Tenant = {
   name: string;
 };
 
-export type Model = {
-  id: string;
-  name: string;
-  provider: string;
-  version: string;
-  status: Status;
-  updated_at: string;
-};
-
 export type Provider = {
   id: string;
+  provider_id: string;
   name: string;
-  environment: string;
-  priority: number;
-  api_key_masked: string;
+  description: string;
+  base_url?: string;
+  api_key_masked?: string;
+  resources?: string;
+  icon_svg_url?: string;
   enabled: boolean;
+  updated_timestamp?: number;
   updated_at: string;
 };
 
@@ -56,7 +51,7 @@ export type RetrievalCollection = {
   scope: Scope;
   tenant_id?: string | null;
   name: string;
-  embedding_model_id: string;
+  provider_id: string;
   document_count: number;
   index_status: string;
   updated_at: string;
@@ -93,7 +88,7 @@ export type Assistant = {
   tenant_id?: string | null;
   name: string;
   status: Status;
-  model_ids: string[];
+  provider_id: string;
   retrieval_collection_ids: string[];
   mcp_collection_ids: string[];
   version: string;
@@ -144,21 +139,13 @@ export const adminApi = {
   deleteTenant: (idInternal: string) =>
     request<{ ok: boolean }>(`/tenants/${idInternal}`, { method: "DELETE" }),
 
-  listModels: () => request<Model[]>("/models"),
-  createModel: (body: { name: string; provider: string; version: string; status: Status }) =>
-    request<Model>("/models", { method: "POST", body: JSON.stringify(body) }),
-  updateModel: (id: string, body: { name: string; provider: string; version: string; status: Status }) =>
-    request<Model>(`/models/${id}`, { method: "PATCH", body: JSON.stringify(body) }),
-  deleteModel: (id: string) => request<{ ok: boolean }>(`/models/${id}`, { method: "DELETE" }),
-
   listProviders: () => request<Provider[]>("/providers"),
-  createProvider: (body: { name: string; environment: string; priority: number; api_key: string; enabled: boolean }) =>
+  createProvider: (body: { provider_id: string; name: string; description: string; base_url?: string; api_key?: string; resources?: string; icon_svg_url?: string; enabled: boolean; updated_timestamp?: number }) =>
     request<Provider>("/providers", { method: "POST", body: JSON.stringify(body) }),
-  updateProvider: (id: string, body: { name: string; environment: string; priority: number; api_key: string; enabled: boolean }) =>
+  updateProvider: (id: string, body: { provider_id: string; name: string; description: string; base_url?: string; api_key?: string; resources?: string; icon_svg_url?: string; enabled: boolean; updated_timestamp?: number }) =>
     request<Provider>(`/providers/${id}`, { method: "PATCH", body: JSON.stringify(body) }),
-  toggleProvider: (id: string) => request<Provider>(`/providers/${id}/toggle`, { method: "POST" }),
-  reorderProviders: (provider_ids: string[]) =>
-    request<{ ok: boolean }>("/providers/reorder", { method: "POST", body: JSON.stringify({ provider_ids }) }),
+  deleteProvider: (id: string) =>
+    request<{ ok: boolean }>(`/providers/${id}`, { method: "DELETE" }),
 
   listRetrievalCollections: (scope: Scope) =>
     request<RetrievalCollection[]>(`/retrieval/collections${q({ scope })}`),
@@ -166,9 +153,9 @@ export const adminApi = {
     request<RetrievalCollection[]>(`/retrieval/collections${q({ scope: "tenant" })}`, {
       headers: { "Rotexai-Tenant-Id": tenantId },
     }),
-  createRetrievalCollection: (body: { scope: Scope; name: string; embedding_model_id: string; tenant_id?: string }) =>
+  createRetrievalCollection: (body: { scope: Scope; name: string; provider_id: string; tenant_id?: string }) =>
     request<RetrievalCollection>("/retrieval/collections", { method: "POST", body: JSON.stringify(body) }),
-  updateRetrievalCollection: (id: string, body: { name?: string; embedding_model_id?: string }) =>
+  updateRetrievalCollection: (id: string, body: { name?: string; provider_id?: string }) =>
     request<RetrievalCollection>(`/retrieval/collections/${id}`, { method: "PATCH", body: JSON.stringify(body) }),
   deleteRetrievalCollection: (id: string) =>
     request<{ ok: boolean }>(`/retrieval/collections/${id}`, { method: "DELETE" }),
@@ -217,13 +204,13 @@ export const adminApi = {
     scope: Scope;
     tenant_id?: string;
     name: string;
-    model_ids: string[];
+    provider_id: string;
     retrieval_collection_ids?: string[];
     mcp_collection_ids?: string[];
   }) => request<Assistant>("/assistants", { method: "POST", body: JSON.stringify(body) }),
   updateAssistant: (id: string, body: {
     name?: string;
-    model_ids?: string[];
+    provider_id?: string;
     retrieval_collection_ids?: string[];
     mcp_collection_ids?: string[];
   }) => request<Assistant>(`/assistants/${id}`, { method: "PATCH", body: JSON.stringify(body) }),

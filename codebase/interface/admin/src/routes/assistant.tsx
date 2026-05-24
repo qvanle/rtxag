@@ -7,7 +7,7 @@ import {
   PageHeader,
   StatusBadge,
 } from "@/components/admin/primitives";
-import { Plus, Bot, Cpu, Database, Plug } from "lucide-react";
+import { Plus, Bot, Database, Plug } from "lucide-react";
 import { adminApi, type Assistant, useAdminMutation, useAdminQuery } from "@/lib/admin-api";
 import {
   Dialog,
@@ -37,12 +37,12 @@ function AssistantsPage() {
     scope: "global" as "global" | "tenant",
     tenant_id: "",
     name: "",
-    model_id: "",
+    provider_id: "",
     retrieval_collection_id: "",
     mcp_collection_id: "",
   });
   const tenantsQuery = useAdminQuery(["assistants", "tenants"], adminApi.listTenants);
-  const modelsQuery = useAdminQuery(["assistants", "models"], adminApi.listModels);
+  const providersQuery = useAdminQuery(["assistants", "providers"], adminApi.listProviders);
   const retrievalOptionsQuery = useAdminQuery(["assistants", "retrieval-options"], async () => {
     const globalCols = await adminApi.listRetrievalCollections("global");
     const tenants = await adminApi.listTenants();
@@ -84,11 +84,11 @@ function AssistantsPage() {
   );
 
   const onCreate = () => {
-    const model_ids = form.model_id ? [form.model_id] : [];
+    const provider_id = form.provider_id.trim();
     const retrieval_collection_ids = form.retrieval_collection_id ? [form.retrieval_collection_id] : [];
     const mcp_collection_ids = form.mcp_collection_id ? [form.mcp_collection_id] : [];
-    if (!model_ids.length) {
-      window.alert("At least one model_id is required");
+    if (!provider_id) {
+      window.alert("provider_id is required");
       return;
     }
     if (form.scope === "tenant" && !form.tenant_id) {
@@ -101,26 +101,23 @@ function AssistantsPage() {
         scope: form.scope,
         tenant_id: form.scope === "tenant" ? form.tenant_id : undefined,
         name: form.name.trim(),
-        model_ids,
+        provider_id,
         retrieval_collection_ids,
         mcp_collection_ids,
       },
       {
         onSuccess: () => {
           setIsCreateOpen(false);
-          setForm({ scope: "global", tenant_id: "", name: "", model_id: "", retrieval_collection_id: "", mcp_collection_id: "" });
+          setForm({ scope: "global", tenant_id: "", name: "", provider_id: "", retrieval_collection_id: "", mcp_collection_id: "" });
         },
       },
     );
   };
 
   const onEdit = (a: Assistant) => {
-    const name = window.prompt("Assistant name", a.name);
+    const name = window.prompt("Agent name", a.name);
     if (!name) return;
-    const model_ids = (window.prompt("Model IDs (comma-separated)", a.model_ids.join(",")) ?? a.model_ids.join(","))
-      .split(",")
-      .map((x) => x.trim())
-      .filter(Boolean);
+    const provider_id = window.prompt("Provider ID", a.provider_id) ?? a.provider_id;
     const retrieval_collection_ids = (window.prompt(
       "Retrieval IDs (comma-separated)",
       a.retrieval_collection_ids.join(","),
@@ -133,25 +130,25 @@ function AssistantsPage() {
       .map((x) => x.trim())
       .filter(Boolean);
 
-    updateAssistant.mutate({ id: a.id, body: { name, model_ids, retrieval_collection_ids, mcp_collection_ids } });
+    updateAssistant.mutate({ id: a.id, body: { name, provider_id, retrieval_collection_ids, mcp_collection_ids } });
   };
 
   return (
     <div className="space-y-6">
       <PageHeader
-        title="Assistants"
-        description="Compose assistants from Models, Retrieval collections and MCP collections."
+        title="Agent"
+        description="Compose agents from Models, Retrieval collections and MCP collections."
         actions={
           <ActionButton onClick={() => setIsCreateOpen(true)}>
-            <Plus className="h-4 w-4" /> New Assistant
+            <Plus className="h-4 w-4" /> New Agent
           </ActionButton>
         }
       />
       <Dialog open={isCreateOpen} onOpenChange={setIsCreateOpen}>
         <DialogContent className="glass border-glass-border bg-gradient-to-b from-background to-muted/30 sm:max-w-xl">
           <DialogHeader>
-            <DialogTitle>New Assistant</DialogTitle>
-            <DialogDescription>Compose assistant inputs with model, retrieval and MCP IDs.</DialogDescription>
+            <DialogTitle>New Agent</DialogTitle>
+            <DialogDescription>Compose agent inputs with provider, retrieval and MCP dependencies.</DialogDescription>
           </DialogHeader>
           <div className="grid grid-cols-1 gap-3">
             <select className="h-10 rounded-md border border-glass-border bg-background px-3 text-sm" value={form.scope} onChange={(e) => setForm((v) => ({ ...v, scope: e.target.value as "global" | "tenant", tenant_id: e.target.value === "tenant" ? v.tenant_id : "" }))}>
@@ -164,11 +161,11 @@ function AssistantsPage() {
                 <option key={t.id_internal} value={t.id_internal}>{t.name}</option>
               ))}
             </select>
-            <input className="h-10 rounded-md border border-glass-border bg-transparent px-3 text-sm" placeholder="Assistant name" value={form.name} onChange={(e) => setForm((v) => ({ ...v, name: e.target.value }))} />
-            <select className="h-10 rounded-md border border-glass-border bg-background px-3 text-sm" value={form.model_id} onChange={(e) => setForm((v) => ({ ...v, model_id: e.target.value }))}>
-              <option value="">Select model</option>
-              {(modelsQuery.data ?? []).map((m) => (
-                <option key={m.id} value={m.id}>{m.name} ({m.id})</option>
+            <input className="h-10 rounded-md border border-glass-border bg-transparent px-3 text-sm" placeholder="Agent name" value={form.name} onChange={(e) => setForm((v) => ({ ...v, name: e.target.value }))} />
+            <select className="h-10 rounded-md border border-glass-border bg-background px-3 text-sm" value={form.provider_id} onChange={(e) => setForm((v) => ({ ...v, provider_id: e.target.value }))}>
+              <option value="">Select provider</option>
+              {(providersQuery.data ?? []).map((p) => (
+                <option key={p.id} value={p.provider_id}>{p.name} ({p.provider_id})</option>
               ))}
             </select>
             <select className="h-10 rounded-md border border-glass-border bg-background px-3 text-sm" value={form.retrieval_collection_id} onChange={(e) => setForm((v) => ({ ...v, retrieval_collection_id: e.target.value }))}>
@@ -186,7 +183,7 @@ function AssistantsPage() {
           </div>
           <DialogFooter>
             <ActionButton variant="ghost" onClick={() => setIsCreateOpen(false)}>Cancel</ActionButton>
-            <ActionButton onClick={onCreate} disabled={createAssistant.isPending}>Create Assistant</ActionButton>
+            <ActionButton onClick={onCreate} disabled={createAssistant.isPending}>Create Agent</ActionButton>
           </DialogFooter>
         </DialogContent>
       </Dialog>
@@ -215,9 +212,7 @@ function AssistantsPage() {
 
             <div className="mt-4 space-y-2">
               <div className="flex flex-wrap gap-1.5">
-                {a.model_ids.map((m) => (
-                  <Chip key={m} icon={Cpu} label={m} />
-                ))}
+                <Chip icon={Plug} label={a.provider_id} />
               </div>
               <div className="flex flex-wrap gap-1.5">
                 {a.retrieval_collection_ids.map((r) => (
@@ -268,12 +263,12 @@ function AssistantsPage() {
           <div className="text-sm font-semibold">All assistants ({filtered.length})</div>
         </div>
         <DataTable
-          columns={["Tenant", "Name", "Scope", "Models", "Retrieval", "MCP", "Version", "Status"]}
+          columns={["Tenant", "Name", "Scope", "Provider", "Retrieval", "MCP", "Version", "Status"]}
           rows={filtered.map((a) => [
             <span key="t" className="text-muted-foreground">{a.tenant_id ?? "Global"}</span>,
             <span key="n" className="font-medium">{a.name}</span>,
             <span key="s" className="text-muted-foreground capitalize">{a.scope}</span>,
-            <span key="m" className="text-foreground/80">{a.model_ids.join(", ")}</span>,
+            <span key="m" className="text-foreground/80">{a.provider_id}</span>,
             <span key="r" className="text-foreground/80">{a.retrieval_collection_ids.join(", ") || "-"}</span>,
             <span key="mc" className="text-foreground/80">{a.mcp_collection_ids.join(", ") || "-"}</span>,
             <span key="v" className="tabular-nums">{a.version}</span>,

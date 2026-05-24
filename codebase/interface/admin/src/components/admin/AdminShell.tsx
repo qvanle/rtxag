@@ -14,7 +14,8 @@ import { cn } from "@/lib/utils";
 
 const nav = [
   { to: "/", label: "Dashboard", icon: LayoutDashboard },
-  { to: "/assistant", label: "Assistant", icon: Bot },
+  { to: "/playground", label: "Playground", icon: Search },
+  { to: "/assistant", label: "Agent", icon: Bot },
   { to: "/model", label: "Model", icon: Cpu },
   { to: "/retrieval", label: "Retrieval", icon: Database },
   { to: "/mcp", label: "MCP", icon: Plug },
@@ -181,7 +182,7 @@ export function AdminShell() {
             <div className="relative flex-1 max-w-md">
               <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
               <input
-                placeholder="Search tenants, assistants, models…"
+                placeholder="Search tenants, agents, models…"
                 className="w-full h-9 pl-9 pr-3 rounded-lg bg-muted/40 border border-border text-sm placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-ring/60"
               />
             </div>

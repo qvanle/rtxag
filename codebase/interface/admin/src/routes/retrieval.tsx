@@ -26,10 +26,10 @@ export const Route = createFileRoute("/retrieval")({
 function RetrievalPage() {
   const [isCreateOpen, setIsCreateOpen] = useState(false);
   const [createName, setCreateName] = useState("");
-  const [createEmbeddingModel, setCreateEmbeddingModel] = useState("");
+  const [createProviderID, setCreateProviderID] = useState("");
   const [createTenantID, setCreateTenantID] = useState("");
   const tenantsQuery = useAdminQuery(["retrieval", "tenants"], adminApi.listTenants);
-  const modelsQuery = useAdminQuery(["retrieval", "models"], adminApi.listModels);
+  const providersQuery = useAdminQuery(["retrieval", "providers"], adminApi.listProviders);
   const collectionsQuery = useAdminQuery(["retrieval", "collections", "merged"], async () => {
     const globalCollections = await adminApi.listRetrievalCollections("global");
     const tenants = await adminApi.listTenants();
@@ -83,17 +83,17 @@ function RetrievalPage() {
   const reindexCollection = useAdminMutation((id: string) => adminApi.reindexRetrievalCollection(id));
   const onCreateCollection = () => {
     const name = createName.trim();
-    if (!name || !createTenantID || !createEmbeddingModel) {
-      window.alert("Tenant, collection name and embedding model are required");
+    if (!name || !createTenantID || !createProviderID) {
+      window.alert("Tenant, collection name and provider are required");
       return;
     }
     createCollection.mutate(
-      { scope: "tenant", tenant_id: createTenantID, name, embedding_model_id: createEmbeddingModel },
+      { scope: "tenant", tenant_id: createTenantID, name, provider_id: createProviderID },
       {
         onSuccess: () => {
           setIsCreateOpen(false);
           setCreateName("");
-          setCreateEmbeddingModel("");
+          setCreateProviderID("");
           setCreateTenantID("");
         },
       },
@@ -104,7 +104,7 @@ function RetrievalPage() {
     <div className="space-y-6">
       <PageHeader
         title="Retrieval"
-        description="Collection-based knowledge stores. Each collection uses one embedding model."
+        description="Collection-based knowledge stores. Each collection uses one provider dependency."
         actions={
           <>
             <ActionButton onClick={() => setIsCreateOpen(true)}>
@@ -117,7 +117,7 @@ function RetrievalPage() {
         <DialogContent className="glass border-glass-border bg-gradient-to-b from-background to-muted/30 sm:max-w-xl">
           <DialogHeader>
             <DialogTitle>New Retrieval Collection</DialogTitle>
-            <DialogDescription>Define collection name and embedding model for indexing.</DialogDescription>
+            <DialogDescription>Define collection name and provider dependency.</DialogDescription>
           </DialogHeader>
           <div className="grid grid-cols-1 gap-3">
             <select className="h-10 rounded-md border border-glass-border bg-background px-3 text-sm" value={createTenantID} onChange={(e) => setCreateTenantID(e.target.value)}>
@@ -127,10 +127,10 @@ function RetrievalPage() {
               ))}
             </select>
             <input className="h-10 rounded-md border border-glass-border bg-transparent px-3 text-sm" placeholder="Collection name" value={createName} onChange={(e) => setCreateName(e.target.value)} />
-            <select className="h-10 rounded-md border border-glass-border bg-background px-3 text-sm" value={createEmbeddingModel} onChange={(e) => setCreateEmbeddingModel(e.target.value)}>
-              <option value="">Select embedding model</option>
-              {(modelsQuery.data ?? []).map((m) => (
-                <option key={m.id} value={m.id}>{m.name} ({m.id})</option>
+            <select className="h-10 rounded-md border border-glass-border bg-background px-3 text-sm" value={createProviderID} onChange={(e) => setCreateProviderID(e.target.value)}>
+              <option value="">Select provider</option>
+              {(providersQuery.data ?? []).map((p) => (
+                <option key={p.id} value={p.provider_id}>{p.name} ({p.provider_id})</option>
               ))}
             </select>
           </div>
@@ -194,7 +194,7 @@ function RetrievalPage() {
 
                 <div className="mt-4 grid grid-cols-2 md:grid-cols-4 gap-3">
                   <Stat label="Documents" value={selected.document_count.toLocaleString()} />
-                  <Stat label="Embedding model" value={selected.embedding_model_id} small />
+                  <Stat label="Provider" value={selected.provider_id} small />
                   <Stat label="Updated" value={formatDate(selected.updated_at)} />
                   <Stat label="Index status" value={selected.index_status} accent />
                 </div>
@@ -206,8 +206,8 @@ function RetrievalPage() {
                     onClick={() => {
                       const name = window.prompt("Collection name", selected.name);
                       if (!name) return;
-                      const embedding_model_id = window.prompt("Embedding model id", selected.embedding_model_id) ?? selected.embedding_model_id;
-                      updateCollection.mutate({ id: selected.id, body: { name, embedding_model_id } });
+                      const provider_id = window.prompt("Provider id", selected.provider_id) ?? selected.provider_id;
+                      updateCollection.mutate({ id: selected.id, body: { name, provider_id } });
                     }}
                   >
                     Edit

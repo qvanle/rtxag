@@ -13,6 +13,7 @@ import { Route as RetrievalRouteImport } from './routes/retrieval'
 import { Route as ModelRouteImport } from './routes/model'
 import { Route as McpRouteImport } from './routes/mcp'
 import { Route as AssistantRouteImport } from './routes/assistant'
+import { Route as PlaygroundRouteImport } from './routes/playground'
 import { Route as IndexRouteImport } from './routes/index'
 
 const RetrievalRoute = RetrievalRouteImport.update({
@@ -35,6 +36,11 @@ const AssistantRoute = AssistantRouteImport.update({
   path: '/assistant',
   getParentRoute: () => rootRouteImport,
 } as any)
+const PlaygroundRoute = PlaygroundRouteImport.update({
+  id: '/playground',
+  path: '/playground',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const IndexRoute = IndexRouteImport.update({
   id: '/',
   path: '/',
@@ -46,6 +52,7 @@ export interface FileRoutesByFullPath {
   '/assistant': typeof AssistantRoute
   '/mcp': typeof McpRoute
   '/model': typeof ModelRoute
+  '/playground': typeof PlaygroundRoute
   '/retrieval': typeof RetrievalRoute
 }
 export interface FileRoutesByTo {
@@ -53,6 +60,7 @@ export interface FileRoutesByTo {
   '/assistant': typeof AssistantRoute
   '/mcp': typeof McpRoute
   '/model': typeof ModelRoute
+  '/playground': typeof PlaygroundRoute
   '/retrieval': typeof RetrievalRoute
 }
 export interface FileRoutesById {
@@ -61,14 +69,15 @@ export interface FileRoutesById {
   '/assistant': typeof AssistantRoute
   '/mcp': typeof McpRoute
   '/model': typeof ModelRoute
+  '/playground': typeof PlaygroundRoute
   '/retrieval': typeof RetrievalRoute
 }
 export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
-  fullPaths: '/' | '/assistant' | '/mcp' | '/model' | '/retrieval'
+  fullPaths: '/' | '/assistant' | '/mcp' | '/model' | '/playground' | '/retrieval'
   fileRoutesByTo: FileRoutesByTo
-  to: '/' | '/assistant' | '/mcp' | '/model' | '/retrieval'
-  id: '__root__' | '/' | '/assistant' | '/mcp' | '/model' | '/retrieval'
+  to: '/' | '/assistant' | '/mcp' | '/model' | '/playground' | '/retrieval'
+  id: '__root__' | '/' | '/assistant' | '/mcp' | '/model' | '/playground' | '/retrieval'
   fileRoutesById: FileRoutesById
 }
 export interface RootRouteChildren {
@@ -76,6 +85,7 @@ export interface RootRouteChildren {
   AssistantRoute: typeof AssistantRoute
   McpRoute: typeof McpRoute
   ModelRoute: typeof ModelRoute
+  PlaygroundRoute: typeof PlaygroundRoute
   RetrievalRoute: typeof RetrievalRoute
 }
 
@@ -93,6 +103,13 @@ declare module '@tanstack/react-router' {
       path: '/model'
       fullPath: '/model'
       preLoaderRoute: typeof ModelRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/playground': {
+      id: '/playground'
+      path: '/playground'
+      fullPath: '/playground'
+      preLoaderRoute: typeof PlaygroundRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/mcp': {
@@ -124,6 +141,7 @@ const rootRouteChildren: RootRouteChildren = {
   AssistantRoute: AssistantRoute,
   McpRoute: McpRoute,
   ModelRoute: ModelRoute,
+  PlaygroundRoute: PlaygroundRoute,
   RetrievalRoute: RetrievalRoute,
 }
 export const routeTree = rootRouteImport
