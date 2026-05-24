@@ -6,10 +6,10 @@ Core ORM package for Admin domain using GORM + PostgreSQL.
 - `models/`: GORM model definitions
 - `migrations/`: SQL migrations (authoritative schema)
 - `db/`: DB connection and migration runner
-- `cmd/orm-migrate`: migration command
+- root command `go run . orm-migrate`
 
 ## Usage
 ```bash
 export ROTEXAI_ORM_DSN='postgres://user:pass@localhost:5432/rotexai?sslmode=disable'
-go run ./cmd/orm-migrate
+go run . orm-migrate
 ```

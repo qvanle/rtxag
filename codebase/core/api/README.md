@@ -13,7 +13,7 @@
 ## Run
 ```bash
 export ADMIN_API_DB_DSN='postgres://user:pass@localhost:5432/rotexai?sslmode=disable'
-go run ./cmd/adminapi
+go run .
 ```
 
 ## Notes

@@ -7,7 +7,7 @@ import (
 	"os/signal"
 	"syscall"
 
-	"rotexai/core/api/internal/bootstrap"
+	"rotexai/core/api/bootstrap"
 )
 
 func main() {
