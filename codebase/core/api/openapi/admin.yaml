@@ -1,0 +1,151 @@
+openapi: 3.0.3
+info:
+  title: RotexAI Admin API
+  version: 0.1.0
+servers:
+  - url: /api/admin
+paths:
+  /dashboard/global:
+    get:
+      summary: Get global dashboard metrics
+      responses:
+        '200': { description: OK }
+  /dashboard/tenants:
+    get:
+      summary: List tenant dashboard rows
+      responses:
+        '200': { description: OK }
+  /models:
+    get: { summary: List models, responses: { '200': { description: OK } } }
+    post: { summary: Create model, responses: { '201': { description: Created } } }
+  /models/{model_id}:
+    get:
+      summary: Get model
+      parameters: [{ name: model_id, in: path, required: true, schema: { type: string } }]
+      responses: { '200': { description: OK }, '404': { description: Not found } }
+    patch:
+      summary: Update model
+      parameters: [{ name: model_id, in: path, required: true, schema: { type: string } }]
+      responses: { '200': { description: OK } }
+    delete:
+      summary: Delete model
+      parameters: [{ name: model_id, in: path, required: true, schema: { type: string } }]
+      responses: { '200': { description: OK } }
+  /providers:
+    get: { summary: List providers, responses: { '200': { description: OK } } }
+    post: { summary: Create provider, responses: { '201': { description: Created } } }
+  /providers/{provider_id}:
+    patch:
+      summary: Update provider
+      parameters: [{ name: provider_id, in: path, required: true, schema: { type: string } }]
+      responses: { '200': { description: OK } }
+  /providers/{provider_id}/toggle:
+    post:
+      summary: Toggle provider
+      parameters: [{ name: provider_id, in: path, required: true, schema: { type: string } }]
+      responses: { '200': { description: OK } }
+  /providers/reorder:
+    post:
+      summary: Reorder providers
+      responses: { '200': { description: OK } }
+  /retrieval/collections:
+    get: { summary: List retrieval collections, responses: { '200': { description: OK } } }
+    post: { summary: Create retrieval collection, responses: { '201': { description: Created } } }
+  /retrieval/collections/{collection_id}:
+    get:
+      summary: Get retrieval collection
+      parameters: [{ name: collection_id, in: path, required: true, schema: { type: string } }]
+      responses: { '200': { description: OK } }
+    patch:
+      summary: Update retrieval collection
+      parameters: [{ name: collection_id, in: path, required: true, schema: { type: string } }]
+      responses: { '200': { description: OK } }
+    delete:
+      summary: Delete retrieval collection
+      parameters: [{ name: collection_id, in: path, required: true, schema: { type: string } }]
+      responses: { '200': { description: OK } }
+  /retrieval/collections/{collection_id}/documents:
+    get:
+      summary: List retrieval documents
+      parameters: [{ name: collection_id, in: path, required: true, schema: { type: string } }]
+      responses: { '200': { description: OK } }
+    post:
+      summary: Create retrieval document
+      parameters: [{ name: collection_id, in: path, required: true, schema: { type: string } }]
+      responses: { '201': { description: Created } }
+  /retrieval/collections/{collection_id}/documents/{document_id}:
+    delete:
+      summary: Delete retrieval document
+      parameters:
+        - { name: collection_id, in: path, required: true, schema: { type: string } }
+        - { name: document_id, in: path, required: true, schema: { type: string } }
+      responses: { '200': { description: OK } }
+  /retrieval/collections/{collection_id}/reindex:
+    post:
+      summary: Reindex retrieval collection
+      parameters: [{ name: collection_id, in: path, required: true, schema: { type: string } }]
+      responses: { '200': { description: OK } }
+  /mcp/collections:
+    get: { summary: List MCP collections, responses: { '200': { description: OK } } }
+    post: { summary: Create MCP collection, responses: { '201': { description: Created } } }
+  /mcp/collections/{collection_id}:
+    get:
+      summary: Get MCP collection
+      parameters: [{ name: collection_id, in: path, required: true, schema: { type: string } }]
+      responses: { '200': { description: OK } }
+    patch:
+      summary: Update MCP collection
+      parameters: [{ name: collection_id, in: path, required: true, schema: { type: string } }]
+      responses: { '200': { description: OK } }
+    delete:
+      summary: Delete MCP collection
+      parameters: [{ name: collection_id, in: path, required: true, schema: { type: string } }]
+      responses: { '200': { description: OK } }
+  /mcp/collections/{collection_id}/records:
+    get:
+      summary: List MCP records
+      parameters: [{ name: collection_id, in: path, required: true, schema: { type: string } }]
+      responses: { '200': { description: OK } }
+    post:
+      summary: Create MCP record
+      parameters: [{ name: collection_id, in: path, required: true, schema: { type: string } }]
+      responses: { '201': { description: Created } }
+  /mcp/collections/{collection_id}/records/{record_id}:
+    patch:
+      summary: Update MCP record
+      parameters:
+        - { name: collection_id, in: path, required: true, schema: { type: string } }
+        - { name: record_id, in: path, required: true, schema: { type: string } }
+      responses: { '200': { description: OK } }
+    delete:
+      summary: Delete MCP record
+      parameters:
+        - { name: collection_id, in: path, required: true, schema: { type: string } }
+        - { name: record_id, in: path, required: true, schema: { type: string } }
+      responses: { '200': { description: OK } }
+  /assistants:
+    get: { summary: List assistants, responses: { '200': { description: OK } } }
+    post: { summary: Create assistant, responses: { '201': { description: Created } } }
+  /assistants/{assistant_id}:
+    get:
+      summary: Get assistant
+      parameters: [{ name: assistant_id, in: path, required: true, schema: { type: string } }]
+      responses: { '200': { description: OK } }
+    patch:
+      summary: Update assistant
+      parameters: [{ name: assistant_id, in: path, required: true, schema: { type: string } }]
+      responses: { '200': { description: OK } }
+    delete:
+      summary: Delete assistant
+      parameters: [{ name: assistant_id, in: path, required: true, schema: { type: string } }]
+      responses: { '200': { description: OK } }
+  /assistants/{assistant_id}/activate:
+    post:
+      summary: Activate assistant
+      parameters: [{ name: assistant_id, in: path, required: true, schema: { type: string } }]
+      responses: { '200': { description: OK } }
+  /assistants/{assistant_id}/clone:
+    post:
+      summary: Clone assistant
+      parameters: [{ name: assistant_id, in: path, required: true, schema: { type: string } }]
+      responses: { '200': { description: OK } }
