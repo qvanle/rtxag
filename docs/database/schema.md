@@ -1,22 +1,20 @@
 # Database Schema (Core ORM)
 
 ## Overview
-This schema is for the RotexAI Core Admin domain, implemented with:
-- PostgreSQL
-- GORM models in `codebase/core/orm`
-- SQL migrations as source of truth
+This schema describes the current SQL-authoritative model in `codebase/core/orm/migrations` for the Core Admin domain.
 
-Design principles:
+Implementation choices:
+- PostgreSQL
+- GORM models in `codebase/core/orm/models`
+- SQL migrations as source of truth
 - Scope-aware data model (`global` and `tenant`)
 - Soft delete for core entities
 - JSONB for flexible payloads
-- Strong FK/check constraints for integrity
-- Tenant lifecycle is external; this service stores `tenant_id` as a reference only (no tenant ownership)
+- Tenant lifecycle is external; `tenant_id` is stored as reference only (no local tenants table)
 
 ## Shared Types
 - `scope_type`: `global`, `tenant`
 - `entity_status_type`: `draft`, `active`, `deprecated`, `archived`
-- `tenant_status_type`: `active`, `suspended`, `deleted`
 - `environment_type`: `dev`, `staging`, `prod`
 - `index_status_type`: `queued`, `indexing`, `indexed`, `failed`
 
@@ -36,22 +34,6 @@ Key columns:
 - `monthly_cost_budget_cents`
 - `created_at`, `updated_at`
 
-### models
-Global model registry.
-
-Key columns:
-- `id` (UUID, PK)
-- `name`
-- `provider_id` (FK -> `providers.id`)
-- `version`
-- `status` (`entity_status_type`)
-- `is_system_required` (bool)
-- `created_by`, `updated_by`
-- `created_at`, `updated_at`, `deleted_at` (soft delete)
-
-Constraints:
-- Unique: `(name, version)`
-
 ### providers
 Provider credentials metadata and routing priority.
 
@@ -67,6 +49,22 @@ Key columns:
 Constraints:
 - Unique: `(name, environment)`
 - Unique: `(environment, priority)`
+
+### models
+Global model registry.
+
+Key columns:
+- `id` (UUID, PK)
+- `name`
+- `provider_id` (FK -> `providers.id`)
+- `version`
+- `status` (`entity_status_type`)
+- `is_system_required` (bool)
+- `created_by`, `updated_by`
+- `created_at`, `updated_at`, `deleted_at` (soft delete)
+
+Constraints:
+- Unique: `(name, version)`
 
 ### retrieval_collections
 Retrieval collections in global/tenant scope.
@@ -86,8 +84,10 @@ Constraints:
 - Scope check:
   - global => `tenant_id IS NULL`
   - tenant => `tenant_id IS NOT NULL`
-- Unique scoped name:
-  - `(scope, COALESCE(tenant_id::text, ''), name)`
+
+Unique scoped name is enforced by index:
+- `ux_retrieval_collections_scope_name`
+- expression: `(scope, COALESCE(tenant_id, ''), name)`
 
 ### retrieval_documents
 Documents indexed in retrieval collections.
@@ -123,8 +123,10 @@ Constraints:
 - Scope check:
   - global => `tenant_id IS NULL`
   - tenant => `tenant_id IS NOT NULL`
-- Unique scoped name:
-  - `(scope, COALESCE(tenant_id::text, ''), name)`
+
+Unique scoped name is enforced by index:
+- `ux_mcp_collections_scope_name`
+- expression: `(scope, COALESCE(tenant_id, ''), name)`
 
 ### mcp_records
 Records stored inside MCP collections.
@@ -156,8 +158,10 @@ Constraints:
 - Scope check:
   - global => `tenant_id IS NULL`
   - tenant => `tenant_id IS NOT NULL`
-- Unique assistant version in scope:
-  - `(scope, COALESCE(tenant_id::text, ''), name, version)`
+
+Unique assistant version in scope is enforced by index:
+- `ux_assistants_scope_name_version`
+- expression: `(scope, COALESCE(tenant_id, ''), name, version)`
 
 ## Assistant Composition Link Tables
 
@@ -204,7 +208,7 @@ Key columns:
 - `id` (UUID, PK)
 - `event_type`
 - `actor_id`
-- `actor_roles` (text[])
+- `actor_roles` (JSONB)
 - `tenant_id` (nullable)
 - `target_type`, `target_id`
 - `before_snapshot` (JSONB)
@@ -214,18 +218,19 @@ Key columns:
 - `created_at`
 
 ## Index Strategy
-- `tenants(status)`
-- `models(status)`
-- `retrieval_collections(scope, tenant_id)`
-- `retrieval_documents(collection_id)`
-- `mcp_collections(scope, tenant_id)`
-- `mcp_records(collection_id)`
-- `assistants(scope, tenant_id)`
-- `audit_events(created_at DESC)`
-- `audit_events(actor_id, created_at DESC)`
-- `audit_events(target_type, target_id, created_at DESC)`
+- `ix_models_status` on `models(status)`
+- `ix_retrieval_scope_tenant` on `retrieval_collections(scope, tenant_id)`
+- `ix_retrieval_documents_collection` on `retrieval_documents(collection_id)`
+- `ux_retrieval_collections_scope_name` unique index on retrieval scoped name
+- `ix_mcp_scope_tenant` on `mcp_collections(scope, tenant_id)`
+- `ix_mcp_records_collection` on `mcp_records(collection_id)`
+- `ux_mcp_collections_scope_name` unique index on MCP scoped name
+- `ix_assistants_scope_tenant` on `assistants(scope, tenant_id)`
+- `ux_assistants_scope_name_version` unique index on assistant scoped version
+- `ix_audit_events_created_at`, `ix_audit_events_actor`, `ix_audit_events_target`
 
 ## Counter Synchronization Triggers
+Defined in `0002_counter_triggers.sql`:
 - `retrieval_documents` INSERT/DELETE updates `retrieval_collections.document_count`
 - `mcp_records` INSERT/DELETE updates `mcp_collections.record_count`
 
@@ -233,4 +238,4 @@ Key columns:
 - Use `gorm.DeletedAt` for soft-deleted core entities.
 - Use `type:jsonb` tags for JSON payload columns.
 - Keep migration SQL authoritative; do not rely only on AutoMigrate in production.
-- Do not create a local `tenants` table in this service; `tenant_id` is provided by gateway/context and validated via service integration.
+- Do not create a local `tenants` table in this service.

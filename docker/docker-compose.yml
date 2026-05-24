@@ -80,3 +80,17 @@ services:
       timeout: 10s
       retries: 5
       start_period: 30s
+
+  adminui:
+    build:
+      context: ../codebase/interface/admin
+      dockerfile: Dockerfile
+    container_name: rtxag-adminui
+    restart: unless-stopped
+    env_file:
+      - .env
+    depends_on:
+      adminapi:
+        condition: service_started
+    ports:
+      - "${ADMIN_UI_PORT}:3000"

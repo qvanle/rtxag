@@ -1,5 +1,5 @@
 import { createFileRoute } from "@tanstack/react-router";
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import {
   ActionButton,
   DataTable,
@@ -8,9 +8,9 @@ import {
   ScopeSwitcher,
   StatusBadge,
 } from "@/components/admin/primitives";
-import { documents, retrievalCollections } from "@/lib/mock-data";
 import { cn } from "@/lib/utils";
 import { Plus, Database, FileText, ChevronRight } from "lucide-react";
+import { adminApi, formatDate, useAdminMutation, useAdminQuery } from "@/lib/admin-api";
 
 export const Route = createFileRoute("/retrieval")({
   component: RetrievalPage,
@@ -18,14 +18,44 @@ export const Route = createFileRoute("/retrieval")({
 
 function RetrievalPage() {
   const [scope, setScope] = useState<"global" | "tenant">("global");
-  const filtered = useMemo(
-    () => retrievalCollections.filter((c) => c.scope === scope),
-    [scope],
+  const collectionsQuery = useAdminQuery(["retrieval", "collections", scope], () =>
+    adminApi.listRetrievalCollections(scope),
   );
-  const [selectedId, setSelectedId] = useState<string>(filtered[0]?.id ?? "");
-  const selected =
-    retrievalCollections.find((c) => c.id === selectedId) ?? filtered[0];
-  const docs = documents.filter((d) => d.collection === selected?.name);
+  const collections = collectionsQuery.data ?? [];
+
+  const [selectedId, setSelectedId] = useState<string>("");
+  useEffect(() => {
+    if (!collections.length) {
+      setSelectedId("");
+      return;
+    }
+    if (!collections.some((c) => c.id === selectedId)) {
+      setSelectedId(collections[0].id);
+    }
+  }, [collections, selectedId]);
+
+  const selected = useMemo(
+    () => collections.find((c) => c.id === selectedId) ?? collections[0],
+    [collections, selectedId],
+  );
+
+  const docsQuery = useAdminQuery(["retrieval", "documents", selected?.id ?? "none"], () =>
+    selected ? adminApi.listRetrievalDocuments(selected.id) : Promise.resolve([]),
+  );
+  const docs = docsQuery.data ?? [];
+
+  const createCollection = useAdminMutation(adminApi.createRetrievalCollection);
+  const updateCollection = useAdminMutation(({ id, body }: { id: string; body: any }) =>
+    adminApi.updateRetrievalCollection(id, body),
+  );
+  const deleteCollection = useAdminMutation((id: string) => adminApi.deleteRetrievalCollection(id));
+  const createDocument = useAdminMutation(({ collectionId, filename }: { collectionId: string; filename: string }) =>
+    adminApi.createRetrievalDocument(collectionId, filename),
+  );
+  const deleteDocument = useAdminMutation(({ collectionId, documentId }: { collectionId: string; documentId: string }) =>
+    adminApi.deleteRetrievalDocument(collectionId, documentId),
+  );
+  const reindexCollection = useAdminMutation((id: string) => adminApi.reindexRetrievalCollection(id));
 
   return (
     <div className="space-y-6">
@@ -34,15 +64,15 @@ function RetrievalPage() {
         description="Collection-based knowledge stores. Each collection uses one embedding model."
         actions={
           <>
-            <ScopeSwitcher
-              value={scope}
-              onChange={(v) => {
-                setScope(v);
-                const next = retrievalCollections.filter((c) => c.scope === v)[0];
-                setSelectedId(next?.id ?? "");
+            <ScopeSwitcher value={scope} onChange={setScope} />
+            <ActionButton
+              onClick={() => {
+                const name = window.prompt("Collection name?");
+                if (!name) return;
+                const embedding_model_id = window.prompt("Embedding model id?", "text-embedding-3-large") ?? "text-embedding-3-large";
+                createCollection.mutate({ scope, name, embedding_model_id });
               }}
-            />
-            <ActionButton>
+            >
               <Plus className="h-4 w-4" /> New Collection
             </ActionButton>
           </>
@@ -55,7 +85,7 @@ function RetrievalPage() {
             Collections
           </div>
           <ul className="divide-y divide-glass-border/60">
-            {filtered.map((c) => (
+            {collections.map((c) => (
               <li key={c.id}>
                 <button
                   onClick={() => setSelectedId(c.id)}
@@ -70,14 +100,14 @@ function RetrievalPage() {
                   <div className="flex-1 min-w-0">
                     <div className="font-medium text-sm truncate">{c.name}</div>
                     <div className="text-xs text-muted-foreground truncate">
-                      {c.tenant ?? "Global"} · {c.docs.toLocaleString()} docs
+                      {c.tenant_id ?? "Global"} · {c.document_count.toLocaleString()} docs
                     </div>
                   </div>
                   <ChevronRight className="h-4 w-4 text-muted-foreground" />
                 </button>
               </li>
             ))}
-            {filtered.length === 0 && (
+            {collections.length === 0 && (
               <li className="px-4 py-8 text-center text-sm text-muted-foreground">
                 No collections in this scope.
               </li>
@@ -91,42 +121,83 @@ function RetrievalPage() {
               <GlassCard>
                 <div className="flex flex-wrap items-start justify-between gap-3">
                   <div>
-                    <div className="text-xs uppercase tracking-wider text-muted-foreground">
-                      Collection
-                    </div>
+                    <div className="text-xs uppercase tracking-wider text-muted-foreground">Collection</div>
                     <h2 className="text-xl font-semibold mt-1">{selected.name}</h2>
                     <div className="text-xs text-muted-foreground mt-1">
-                      {selected.tenant ?? "Global scope"}
+                      {selected.tenant_id ?? "Global scope"}
                     </div>
                   </div>
-                  <StatusBadge status={selected.status} />
+                  <StatusBadge status={selected.index_status} />
                 </div>
 
                 <div className="mt-4 grid grid-cols-2 md:grid-cols-4 gap-3">
-                  <Stat label="Documents" value={selected.docs.toLocaleString()} />
-                  <Stat label="Embedding model" value={selected.embeddingModel} small />
-                  <Stat label="Updated" value={selected.updated} />
-                  <Stat label="Index health" value="100%" accent />
+                  <Stat label="Documents" value={selected.document_count.toLocaleString()} />
+                  <Stat label="Embedding model" value={selected.embedding_model_id} small />
+                  <Stat label="Updated" value={formatDate(selected.updated_at)} />
+                  <Stat label="Index status" value={selected.index_status} accent />
+                </div>
+                <div className="mt-4 flex flex-wrap gap-2">
+                  <ActionButton variant="outline" className="text-xs" onClick={() => reindexCollection.mutate(selected.id)}>Reindex</ActionButton>
+                  <ActionButton
+                    variant="outline"
+                    className="text-xs"
+                    onClick={() => {
+                      const name = window.prompt("Collection name", selected.name);
+                      if (!name) return;
+                      const embedding_model_id = window.prompt("Embedding model id", selected.embedding_model_id) ?? selected.embedding_model_id;
+                      updateCollection.mutate({ id: selected.id, body: { name, embedding_model_id } });
+                    }}
+                  >
+                    Edit
+                  </ActionButton>
+                  <ActionButton
+                    variant="ghost"
+                    className="text-xs"
+                    onClick={() => {
+                      if (window.confirm(`Delete collection ${selected.name}?`)) deleteCollection.mutate(selected.id);
+                    }}
+                  >
+                    Delete
+                  </ActionButton>
                 </div>
               </GlassCard>
 
               <GlassCard className="p-0 overflow-hidden">
                 <div className="px-5 py-4 border-b border-glass-border flex items-center justify-between">
                   <div className="text-sm font-semibold">Documents ({docs.length})</div>
-                  <ActionButton variant="outline" className="text-xs">
+                  <ActionButton
+                    variant="outline"
+                    className="text-xs"
+                    onClick={() => {
+                      const filename = window.prompt("Document filename?");
+                      if (!filename) return;
+                      createDocument.mutate({ collectionId: selected.id, filename });
+                    }}
+                  >
                     <Plus className="h-3.5 w-3.5" /> Upload
                   </ActionButton>
                 </div>
                 <DataTable
-                  columns={["Title", "Size", "Status", "Updated"]}
+                  columns={["Title", "Status", "Created", "Actions"]}
                   rows={docs.map((d) => [
                     <div key="t" className="flex items-center gap-2">
                       <FileText className="h-4 w-4 text-muted-foreground" />
-                      <span className="font-medium">{d.title}</span>
+                      <span className="font-medium">{d.filename}</span>
                     </div>,
-                    <span key="s" className="text-muted-foreground tabular-nums">{d.size}</span>,
                     <StatusBadge key="st" status={d.status} />,
-                    <span key="u" className="text-muted-foreground tabular-nums">{d.updated}</span>,
+                    <span key="u" className="text-muted-foreground tabular-nums">{formatDate(d.created_at)}</span>,
+                    <ActionButton
+                      key="a"
+                      variant="ghost"
+                      className="text-xs"
+                      onClick={() => {
+                        if (window.confirm(`Delete document ${d.filename}?`)) {
+                          deleteDocument.mutate({ collectionId: selected.id, documentId: d.id });
+                        }
+                      }}
+                    >
+                      Delete
+                    </ActionButton>,
                   ])}
                 />
               </GlassCard>

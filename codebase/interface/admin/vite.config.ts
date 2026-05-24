@@ -12,4 +12,18 @@ export default defineConfig({
   tanstackStart: {
     server: { entry: "server" },
   },
+  vite: {
+    server: {
+      proxy: {
+        "/api/admin": {
+          target: process.env.VITE_CORE_API_ORIGIN ?? "http://localhost:8080",
+          changeOrigin: true,
+        },
+        "/healthz": {
+          target: process.env.VITE_CORE_API_ORIGIN ?? "http://localhost:8080",
+          changeOrigin: true,
+        },
+      },
+    },
+  },
 });

@@ -8,8 +8,8 @@ import {
   ScopeSwitcher,
   StatusBadge,
 } from "@/components/admin/primitives";
-import { assistants } from "@/lib/mock-data";
 import { Plus, Bot, Cpu, Database, Plug } from "lucide-react";
+import { adminApi, type Assistant, useAdminMutation, useAdminQuery } from "@/lib/admin-api";
 
 export const Route = createFileRoute("/assistant")({
   component: AssistantsPage,
@@ -26,10 +26,64 @@ function Chip({ icon: Icon, label }: { icon: any; label: string }) {
 
 function AssistantsPage() {
   const [scope, setScope] = useState<"global" | "tenant">("global");
-  const filtered = useMemo(
-    () => assistants.filter((a) => a.scope === scope),
-    [scope],
+  const assistantsQuery = useAdminQuery(["assistants", scope], () => adminApi.listAssistants(scope));
+  const filtered = useMemo(() => assistantsQuery.data ?? [], [assistantsQuery.data]);
+
+  const createAssistant = useAdminMutation(adminApi.createAssistant);
+  const updateAssistant = useAdminMutation(({ id, body }: { id: string; body: any }) =>
+    adminApi.updateAssistant(id, body),
   );
+  const deleteAssistant = useAdminMutation((id: string) => adminApi.deleteAssistant(id));
+  const activateAssistant = useAdminMutation((id: string) => adminApi.activateAssistant(id));
+  const cloneAssistant = useAdminMutation(({ id, target_scope }: { id: string; target_scope: "global" | "tenant" }) =>
+    adminApi.cloneAssistant(id, { target_scope }),
+  );
+
+  const onCreate = () => {
+    const name = window.prompt("Assistant name?");
+    if (!name) return;
+    const modelIdsRaw = window.prompt("Model IDs (comma-separated)", "") ?? "";
+    const retrievalIdsRaw = window.prompt("Retrieval collection IDs (comma-separated)", "") ?? "";
+    const mcpIdsRaw = window.prompt("MCP collection IDs (comma-separated)", "") ?? "";
+
+    const model_ids = modelIdsRaw.split(",").map((x) => x.trim()).filter(Boolean);
+    const retrieval_collection_ids = retrievalIdsRaw.split(",").map((x) => x.trim()).filter(Boolean);
+    const mcp_collection_ids = mcpIdsRaw.split(",").map((x) => x.trim()).filter(Boolean);
+    if (!model_ids.length) {
+      window.alert("At least one model_id is required");
+      return;
+    }
+
+    createAssistant.mutate({
+      scope,
+      name,
+      model_ids,
+      retrieval_collection_ids,
+      mcp_collection_ids,
+    });
+  };
+
+  const onEdit = (a: Assistant) => {
+    const name = window.prompt("Assistant name", a.name);
+    if (!name) return;
+    const model_ids = (window.prompt("Model IDs (comma-separated)", a.model_ids.join(",")) ?? a.model_ids.join(","))
+      .split(",")
+      .map((x) => x.trim())
+      .filter(Boolean);
+    const retrieval_collection_ids = (window.prompt(
+      "Retrieval IDs (comma-separated)",
+      a.retrieval_collection_ids.join(","),
+    ) ?? a.retrieval_collection_ids.join(","))
+      .split(",")
+      .map((x) => x.trim())
+      .filter(Boolean);
+    const mcp_collection_ids = (window.prompt("MCP IDs (comma-separated)", a.mcp_collection_ids.join(",")) ?? a.mcp_collection_ids.join(","))
+      .split(",")
+      .map((x) => x.trim())
+      .filter(Boolean);
+
+    updateAssistant.mutate({ id: a.id, body: { name, model_ids, retrieval_collection_ids, mcp_collection_ids } });
+  };
 
   return (
     <div className="space-y-6">
@@ -39,12 +93,16 @@ function AssistantsPage() {
         actions={
           <>
             <ScopeSwitcher value={scope} onChange={setScope} />
-            <ActionButton>
+            <ActionButton onClick={onCreate}>
               <Plus className="h-4 w-4" /> New Assistant
             </ActionButton>
           </>
         }
       />
+
+      {!!assistantsQuery.error && (
+        <div className="text-sm text-destructive">{(assistantsQuery.error as Error).message}</div>
+      )}
 
       <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-4">
         {filtered.map((a) => (
@@ -57,7 +115,7 @@ function AssistantsPage() {
                 <div>
                   <div className="font-semibold leading-tight">{a.name}</div>
                   <div className="text-xs text-muted-foreground">
-                    {a.tenant ?? "Global"} · {a.version}
+                    {a.tenant_id ?? "Global"} · {a.version}
                   </div>
                 </div>
               </div>
@@ -66,30 +124,48 @@ function AssistantsPage() {
 
             <div className="mt-4 space-y-2">
               <div className="flex flex-wrap gap-1.5">
-                {a.models.map((m) => (
+                {a.model_ids.map((m) => (
                   <Chip key={m} icon={Cpu} label={m} />
                 ))}
               </div>
               <div className="flex flex-wrap gap-1.5">
-                {a.retrieval.map((r) => (
+                {a.retrieval_collection_ids.map((r) => (
                   <Chip key={r} icon={Database} label={r} />
                 ))}
               </div>
-              {a.mcp.length > 0 && (
+              {a.mcp_collection_ids.length > 0 && (
                 <div className="flex flex-wrap gap-1.5">
-                  {a.mcp.map((m) => (
+                  {a.mcp_collection_ids.map((m) => (
                     <Chip key={m} icon={Plug} label={m} />
                   ))}
                 </div>
               )}
             </div>
 
-            <div className="mt-5 pt-4 border-t border-glass-border flex gap-2">
-              <ActionButton variant="outline" className="flex-1 justify-center">
+            <div className="mt-5 pt-4 border-t border-glass-border flex gap-2 flex-wrap">
+              <ActionButton variant="outline" className="justify-center" onClick={() => onEdit(a)}>
                 Edit
               </ActionButton>
-              <ActionButton variant="ghost" className="justify-center">
-                Logs
+              <ActionButton variant="ghost" className="justify-center" onClick={() => activateAssistant.mutate(a.id)}>
+                Activate
+              </ActionButton>
+              <ActionButton
+                variant="ghost"
+                className="justify-center"
+                onClick={() => cloneAssistant.mutate({ id: a.id, target_scope: scope })}
+              >
+                Clone
+              </ActionButton>
+              <ActionButton
+                variant="ghost"
+                className="justify-center"
+                onClick={() => {
+                  if (window.confirm(`Delete assistant ${a.name}?`)) {
+                    deleteAssistant.mutate(a.id);
+                  }
+                }}
+              >
+                Delete
               </ActionButton>
             </div>
           </GlassCard>
@@ -104,10 +180,10 @@ function AssistantsPage() {
           columns={["Name", "Scope", "Models", "Retrieval", "MCP", "Version", "Status"]}
           rows={filtered.map((a) => [
             <span key="n" className="font-medium">{a.name}</span>,
-            <span key="s" className="text-muted-foreground">{a.tenant ?? "Global"}</span>,
-            <span key="m" className="text-foreground/80">{a.models.join(", ")}</span>,
-            <span key="r" className="text-foreground/80">{a.retrieval.join(", ") || "—"}</span>,
-            <span key="mc" className="text-foreground/80">{a.mcp.join(", ") || "—"}</span>,
+            <span key="s" className="text-muted-foreground">{a.tenant_id ?? "Global"}</span>,
+            <span key="m" className="text-foreground/80">{a.model_ids.join(", ")}</span>,
+            <span key="r" className="text-foreground/80">{a.retrieval_collection_ids.join(", ") || "-"}</span>,
+            <span key="mc" className="text-foreground/80">{a.mcp_collection_ids.join(", ") || "-"}</span>,
             <span key="v" className="tabular-nums">{a.version}</span>,
             <StatusBadge key="st" status={a.status} />,
           ])}

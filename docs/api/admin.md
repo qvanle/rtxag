@@ -27,9 +27,15 @@ Conventions:
 }
 ```
 
+## Current Implementation Status
+- `Model` + `Provider`: ORM-backed via `core/services` + `core/orm`.
+- `Dashboard`, `Retrieval`, `MCP`, `Assistants`: currently served by in-memory/stub services in API layer.
+
 ---
 
 ## 1) Dashboard
+
+Status: `stubbed/in-memory`
 
 ### GET `/api/admin/dashboard/global`
 Get global metrics.
@@ -61,11 +67,13 @@ Response `data[]`:
 
 ## 2) Models and Providers
 
+Status: `implemented (ORM-backed)`
+
 ## Model Resource
 Fields:
 - `id`
 - `name`
-- `provider`
+- `provider_id`
 - `version`
 - `status` (`draft|active|deprecated|archived`)
 - `updated_at`
@@ -78,7 +86,7 @@ Create model.
 
 Request:
 - `name` (string, required)
-- `provider` (string, required)
+- `provider_id` (string, required)
 - `version` (string, required)
 - `status` (optional)
 
@@ -121,6 +129,8 @@ Request:
 ---
 
 ## 3) Retrieval Collections
+
+Status: `stubbed/in-memory`
 
 Retrieval uses collections in 2 scopes: `global` and `tenant`.
 
@@ -184,6 +194,8 @@ Reindex all documents in collection using selected embedding model.
 
 ## 4) MCP Collections
 
+Status: `stubbed/in-memory`
+
 MCP uses collections in 2 scopes: `global` and `tenant`.
 
 ## MCP Collection Resource
@@ -237,6 +249,8 @@ Delete record.
 ---
 
 ## 5) Assistants
+
+Status: `stubbed/in-memory`
 
 Assistants are composed from Models + Retrieval collections + MCP collections and exist in scopes `global|tenant`.
 
