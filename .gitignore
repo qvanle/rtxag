@@ -91,7 +91,6 @@ site/
 # Postgres (local dev data / dumps)
 # ------------------------------
 postgres-data/
-*.sql
 *.dump
 *.bak
 

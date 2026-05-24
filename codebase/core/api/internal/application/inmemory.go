@@ -15,7 +15,6 @@ import (
 type InMemoryServices struct {
 	Dashboard DashboardService
 	Tenant    TenantService
-	Model     ModelService
 	Provider  ProviderService
 	Retrieval RetrievalService
 	MCP       MCPService
@@ -27,7 +26,6 @@ func NewInMemoryServices() *InMemoryServices {
 	return &InMemoryServices{
 		Dashboard: &dashboardMemoryService{state: state},
 		Tenant:    &tenantMemoryService{state: state},
-		Model:     &modelMemoryService{state: state},
 		Provider:  &providerMemoryService{state: state},
 		Retrieval: &retrievalMemoryService{state: state},
 		MCP:       &mcpMemoryService{state: state},
@@ -37,7 +35,6 @@ func NewInMemoryServices() *InMemoryServices {
 
 type memoryState struct {
 	mu          sync.RWMutex
-	models      map[string]domain.Model
 	providers   map[string]domain.Provider
 	tenants     map[string]domain.Tenant
 	retrievals  map[string]domain.RetrievalCollection
@@ -52,7 +49,6 @@ func (s *memoryState) init() {
 	if s.initialized {
 		return
 	}
-	s.models = map[string]domain.Model{}
 	s.providers = map[string]domain.Provider{}
 	s.tenants = map[string]domain.Tenant{}
 	s.retrievals = map[string]domain.RetrievalCollection{}
@@ -190,54 +186,18 @@ func (s *tenantMemoryService) Delete(_ context.Context, idInternal string) error
 	return nil
 }
 
-type modelMemoryService struct{ state *memoryState }
-
-func (s *modelMemoryService) List(context.Context) ([]domain.Model, error) {
-	s.state.mu.RLock()
-	defer s.state.mu.RUnlock()
-	rows := make([]domain.Model, 0, len(s.state.models))
-	for _, m := range s.state.models {
-		rows = append(rows, m)
-	}
-	return rows, nil
-}
-func (s *modelMemoryService) Create(_ context.Context, req CreateModelRequest) (domain.Model, error) {
-	s.state.mu.Lock()
-	defer s.state.mu.Unlock()
-	s.state.init()
-	id := uuid.NewString()
-	m := domain.Model{ID: id, Name: req.Name, Provider: req.Provider, Version: req.Version, Status: req.Status, UpdatedAt: time.Now().UTC()}
-	s.state.models[id] = m
-	return m, nil
-}
-func (s *modelMemoryService) Get(_ context.Context, modelID string) (domain.Model, error) {
-	s.state.mu.RLock()
-	defer s.state.mu.RUnlock()
-	m, ok := s.state.models[modelID]
-	if !ok {
-		return domain.Model{}, fmt.Errorf("model not found")
-	}
-	return m, nil
-}
-func (s *modelMemoryService) Update(_ context.Context, modelID string, req UpdateModelRequest) (domain.Model, error) {
-	s.state.mu.Lock()
-	defer s.state.mu.Unlock()
-	m, ok := s.state.models[modelID]
-	if !ok {
-		return domain.Model{}, fmt.Errorf("model not found")
-	}
-	m.Name, m.Provider, m.Version, m.Status, m.UpdatedAt = req.Name, req.Provider, req.Version, req.Status, time.Now().UTC()
-	s.state.models[modelID] = m
-	return m, nil
-}
-func (s *modelMemoryService) Delete(_ context.Context, modelID string) error {
-	s.state.mu.Lock()
-	defer s.state.mu.Unlock()
-	delete(s.state.models, modelID)
-	return nil
-}
-
 type providerMemoryService struct{ state *memoryState }
+
+func maskAPIKey(raw string) string {
+	v := strings.TrimSpace(raw)
+	if v == "" {
+		return ""
+	}
+	if len(v) <= 8 {
+		return "***"
+	}
+	return v[:4] + "..." + v[len(v)-4:]
+}
 
 func (s *providerMemoryService) List(context.Context) ([]domain.Provider, error) {
 	s.state.mu.RLock()
@@ -248,11 +208,35 @@ func (s *providerMemoryService) List(context.Context) ([]domain.Provider, error)
 	}
 	return rows, nil
 }
+
+func (s *providerMemoryService) GetByProviderID(_ context.Context, providerID string) (domain.Provider, error) {
+	s.state.mu.RLock()
+	defer s.state.mu.RUnlock()
+	for _, p := range s.state.providers {
+		if p.ProviderID == strings.TrimSpace(providerID) {
+			return p, nil
+		}
+	}
+	return domain.Provider{}, fmt.Errorf("provider not found")
+}
 func (s *providerMemoryService) Create(_ context.Context, req CreateProviderRequest) (domain.Provider, error) {
 	s.state.mu.Lock()
 	defer s.state.mu.Unlock()
 	s.state.init()
-	p := domain.Provider{ID: uuid.NewString(), Name: req.Name, Environment: req.Environment, Priority: req.Priority, APIKeyMasked: "***", Enabled: req.Enabled, UpdatedAt: time.Now().UTC()}
+	p := domain.Provider{
+		ID:               uuid.NewString(),
+		ProviderID:       strings.TrimSpace(req.ProviderID),
+		Name:             strings.TrimSpace(req.Name),
+		Description:      strings.TrimSpace(req.Description),
+		BaseURL:          strings.TrimSpace(req.BaseURL),
+		APIKey:           strings.TrimSpace(req.APIKey),
+		APIKeyMasked:     maskAPIKey(req.APIKey),
+		Resources:        req.Resources,
+		IconSVGURL:       strings.TrimSpace(req.IconSVGURL),
+		Enabled:          req.Enabled,
+		UpdatedTimestamp: req.UpdatedStamp,
+		UpdatedAt:        time.Now().UTC(),
+	}
 	s.state.providers[p.ID] = p
 	return p, nil
 }
@@ -263,33 +247,29 @@ func (s *providerMemoryService) Update(_ context.Context, providerID string, req
 	if !ok {
 		return domain.Provider{}, fmt.Errorf("provider not found")
 	}
-	p.Name, p.Environment, p.Priority, p.Enabled, p.UpdatedAt = req.Name, req.Environment, req.Priority, req.Enabled, time.Now().UTC()
-	s.state.providers[providerID] = p
-	return p, nil
-}
-func (s *providerMemoryService) Toggle(_ context.Context, providerID string) (domain.Provider, error) {
-	s.state.mu.Lock()
-	defer s.state.mu.Unlock()
-	p, ok := s.state.providers[providerID]
-	if !ok {
-		return domain.Provider{}, fmt.Errorf("provider not found")
+	p.ProviderID = strings.TrimSpace(req.ProviderID)
+	p.Name = strings.TrimSpace(req.Name)
+	p.Description = strings.TrimSpace(req.Description)
+	p.BaseURL = strings.TrimSpace(req.BaseURL)
+	if strings.TrimSpace(req.APIKey) != "" {
+		p.APIKey = strings.TrimSpace(req.APIKey)
+		p.APIKeyMasked = maskAPIKey(req.APIKey)
 	}
-	p.Enabled = !p.Enabled
+	p.Resources = req.Resources
+	p.IconSVGURL = strings.TrimSpace(req.IconSVGURL)
+	p.Enabled = req.Enabled
+	p.UpdatedTimestamp = req.UpdatedStamp
 	p.UpdatedAt = time.Now().UTC()
 	s.state.providers[providerID] = p
 	return p, nil
 }
-func (s *providerMemoryService) Reorder(_ context.Context, providerIDs []string) error {
+func (s *providerMemoryService) Delete(_ context.Context, providerID string) error {
 	s.state.mu.Lock()
 	defer s.state.mu.Unlock()
-	for i, id := range providerIDs {
-		p, ok := s.state.providers[id]
-		if !ok {
-			continue
-		}
-		p.Priority = i + 1
-		s.state.providers[id] = p
+	if _, ok := s.state.providers[providerID]; !ok {
+		return fmt.Errorf("provider not found")
 	}
+	delete(s.state.providers, providerID)
 	return nil
 }
 
@@ -314,7 +294,7 @@ func (s *retrievalMemoryService) CreateCollection(_ context.Context, req CreateR
 	s.state.mu.Lock()
 	defer s.state.mu.Unlock()
 	s.state.init()
-	col := domain.RetrievalCollection{ID: uuid.NewString(), Scope: req.Scope, Name: req.Name, EmbeddingModelID: req.EmbeddingModelID, IndexStatus: "queued", UpdatedAt: time.Now().UTC()}
+	col := domain.RetrievalCollection{ID: uuid.NewString(), Scope: req.Scope, Name: req.Name, ProviderID: req.ProviderID, IndexStatus: "queued", UpdatedAt: time.Now().UTC()}
 	if req.Scope == domain.ScopeTenant {
 		col.TenantID = &req.TenantID
 	}
@@ -340,8 +320,8 @@ func (s *retrievalMemoryService) UpdateCollection(_ context.Context, collectionI
 	if req.Name != nil {
 		v.Name = *req.Name
 	}
-	if req.EmbeddingModelID != nil {
-		v.EmbeddingModelID = *req.EmbeddingModelID
+	if req.ProviderID != nil {
+		v.ProviderID = *req.ProviderID
 	}
 	v.UpdatedAt = time.Now().UTC()
 	s.state.retrievals[collectionID] = v
@@ -512,10 +492,10 @@ func (s *assistantMemoryService) Create(_ context.Context, req CreateAssistantRe
 	s.state.mu.Lock()
 	defer s.state.mu.Unlock()
 	s.state.init()
-	if len(req.ModelIDs) == 0 {
-		return domain.Assistant{}, fmt.Errorf("model_ids required")
+	if strings.TrimSpace(req.ProviderID) == "" {
+		return domain.Assistant{}, fmt.Errorf("provider_id required")
 	}
-	a := domain.Assistant{ID: uuid.NewString(), Scope: req.Scope, Name: strings.TrimSpace(req.Name), Status: domain.StatusDraft, ModelIDs: req.ModelIDs, RetrievalCollectionIDs: req.RetrievalCollectionIDs, MCPCollectionIDs: req.MCPCollectionIDs, Version: "v1", UpdatedAt: time.Now().UTC()}
+	a := domain.Assistant{ID: uuid.NewString(), Scope: req.Scope, Name: strings.TrimSpace(req.Name), Status: domain.StatusDraft, ProviderID: req.ProviderID, RetrievalCollectionIDs: req.RetrievalCollectionIDs, MCPCollectionIDs: req.MCPCollectionIDs, Version: "v1", UpdatedAt: time.Now().UTC()}
 	if req.Scope == domain.ScopeTenant {
 		a.TenantID = &req.TenantID
 	}
@@ -541,8 +521,8 @@ func (s *assistantMemoryService) Update(_ context.Context, assistantID string, r
 	if req.Name != nil {
 		a.Name = *req.Name
 	}
-	if req.ModelIDs != nil && len(*req.ModelIDs) > 0 {
-		a.ModelIDs = *req.ModelIDs
+	if req.ProviderID != nil && strings.TrimSpace(*req.ProviderID) != "" {
+		a.ProviderID = strings.TrimSpace(*req.ProviderID)
 	}
 	if req.RetrievalCollectionIDs != nil {
 		a.RetrievalCollectionIDs = *req.RetrievalCollectionIDs

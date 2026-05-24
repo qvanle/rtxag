@@ -54,34 +54,30 @@ type Tenant struct {
 	Name       string `json:"name"`
 }
 
-type Model struct {
-	ID        string    `json:"id"`
-	Name      string    `json:"name"`
-	Provider  string    `json:"provider"`
-	Version   string    `json:"version"`
-	Status    Status    `json:"status"`
-	UpdatedAt time.Time `json:"updated_at"`
-}
-
 type Provider struct {
-	ID           string    `json:"id"`
-	Name         string    `json:"name"`
-	Environment  string    `json:"environment"`
-	Priority     int       `json:"priority"`
-	APIKeyMasked string    `json:"api_key_masked"`
-	Enabled      bool      `json:"enabled"`
-	UpdatedAt    time.Time `json:"updated_at"`
+	ID               string    `json:"id"`
+	ProviderID       string    `json:"provider_id"`
+	Name             string    `json:"name"`
+	Description      string    `json:"description"`
+	BaseURL          string    `json:"base_url"`
+	APIKey           string    `json:"-"`
+	APIKeyMasked     string    `json:"api_key_masked,omitempty"`
+	Resources        string    `json:"resources,omitempty"`
+	IconSVGURL       string    `json:"icon_svg_url,omitempty"`
+	Enabled          bool      `json:"enabled"`
+	UpdatedTimestamp int64     `json:"updated_timestamp,omitempty"`
+	UpdatedAt        time.Time `json:"updated_at"`
 }
 
 type RetrievalCollection struct {
-	ID               string    `json:"id"`
-	Scope            Scope     `json:"scope"`
-	TenantID         *string   `json:"tenant_id"`
-	Name             string    `json:"name"`
-	EmbeddingModelID string    `json:"embedding_model_id"`
-	DocumentCount    int       `json:"document_count"`
-	IndexStatus      string    `json:"index_status"`
-	UpdatedAt        time.Time `json:"updated_at"`
+	ID            string    `json:"id"`
+	Scope         Scope     `json:"scope"`
+	TenantID      *string   `json:"tenant_id"`
+	Name          string    `json:"name"`
+	ProviderID    string    `json:"provider_id"`
+	DocumentCount int       `json:"document_count"`
+	IndexStatus   string    `json:"index_status"`
+	UpdatedAt     time.Time `json:"updated_at"`
 }
 
 type RetrievalDocument struct {
@@ -115,7 +111,7 @@ type Assistant struct {
 	TenantID               *string   `json:"tenant_id"`
 	Name                   string    `json:"name"`
 	Status                 Status    `json:"status"`
-	ModelIDs               []string  `json:"model_ids"`
+	ProviderID             string    `json:"provider_id"`
 	RetrievalCollectionIDs []string  `json:"retrieval_collection_ids"`
 	MCPCollectionIDs       []string  `json:"mcp_collection_ids"`
 	Version                string    `json:"version"`

@@ -23,20 +23,12 @@ type TenantService interface {
 	Delete(ctx context.Context, idInternal string) error
 }
 
-type ModelService interface {
-	List(ctx context.Context) ([]domain.Model, error)
-	Create(ctx context.Context, req CreateModelRequest) (domain.Model, error)
-	Get(ctx context.Context, modelID string) (domain.Model, error)
-	Update(ctx context.Context, modelID string, req UpdateModelRequest) (domain.Model, error)
-	Delete(ctx context.Context, modelID string) error
-}
-
 type ProviderService interface {
 	List(ctx context.Context) ([]domain.Provider, error)
+	GetByProviderID(ctx context.Context, providerID string) (domain.Provider, error)
 	Create(ctx context.Context, req CreateProviderRequest) (domain.Provider, error)
 	Update(ctx context.Context, providerID string, req UpdateProviderRequest) (domain.Provider, error)
-	Toggle(ctx context.Context, providerID string) (domain.Provider, error)
-	Reorder(ctx context.Context, providerIDs []string) error
+	Delete(ctx context.Context, providerID string) error
 }
 
 type RetrievalService interface {
@@ -73,35 +65,30 @@ type AssistantService interface {
 	Clone(ctx context.Context, assistantID string, req CloneAssistantRequest) (domain.Assistant, error)
 }
 
-type CreateModelRequest struct {
-	Name     string        `json:"name"`
-	Provider string        `json:"provider"`
-	Version  string        `json:"version"`
-	Status   domain.Status `json:"status"`
-}
-
-type UpdateModelRequest = CreateModelRequest
-
 type CreateProviderRequest struct {
-	Name        string `json:"name"`
-	Environment string `json:"environment"`
-	Priority    int    `json:"priority"`
-	APIKey      string `json:"api_key"`
-	Enabled     bool   `json:"enabled"`
+	ProviderID   string `json:"provider_id"`
+	Name         string `json:"name"`
+	Description  string `json:"description"`
+	BaseURL      string `json:"base_url"`
+	APIKey       string `json:"api_key,omitempty"`
+	Resources    string `json:"resources,omitempty"`
+	IconSVGURL   string `json:"icon_svg_url,omitempty"`
+	Enabled      bool   `json:"enabled"`
+	UpdatedStamp int64  `json:"updated_timestamp,omitempty"`
 }
 
 type UpdateProviderRequest = CreateProviderRequest
 
 type CreateRetrievalCollectionRequest struct {
-	Scope            domain.Scope `json:"scope"`
-	TenantID         string       `json:"tenant_id,omitempty"`
-	Name             string       `json:"name"`
-	EmbeddingModelID string       `json:"embedding_model_id"`
+	Scope      domain.Scope `json:"scope"`
+	TenantID   string       `json:"tenant_id,omitempty"`
+	Name       string       `json:"name"`
+	ProviderID string       `json:"provider_id"`
 }
 
 type UpdateRetrievalCollectionRequest struct {
-	Name             *string `json:"name,omitempty"`
-	EmbeddingModelID *string `json:"embedding_model_id,omitempty"`
+	Name       *string `json:"name,omitempty"`
+	ProviderID *string `json:"provider_id,omitempty"`
 }
 
 type CreateRetrievalDocumentRequest struct {
@@ -132,14 +119,14 @@ type CreateAssistantRequest struct {
 	Scope                  domain.Scope `json:"scope"`
 	TenantID               string       `json:"tenant_id,omitempty"`
 	Name                   string       `json:"name"`
-	ModelIDs               []string     `json:"model_ids"`
+	ProviderID             string       `json:"provider_id"`
 	RetrievalCollectionIDs []string     `json:"retrieval_collection_ids,omitempty"`
 	MCPCollectionIDs       []string     `json:"mcp_collection_ids,omitempty"`
 }
 
 type UpdateAssistantRequest struct {
 	Name                   *string   `json:"name,omitempty"`
-	ModelIDs               *[]string `json:"model_ids,omitempty"`
+	ProviderID             *string   `json:"provider_id,omitempty"`
 	RetrievalCollectionIDs *[]string `json:"retrieval_collection_ids,omitempty"`
 	MCPCollectionIDs       *[]string `json:"mcp_collection_ids,omitempty"`
 }

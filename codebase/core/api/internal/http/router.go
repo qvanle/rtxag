@@ -38,17 +38,14 @@ func NewRouter(deps handlers.Deps) http.Handler {
 		r.Patch("/tenants/{id_internal}", h.UpdateTenant)
 		r.Delete("/tenants/{id_internal}", h.DeleteTenant)
 
-		r.Get("/models", h.ListModels)
-		r.Post("/models", h.CreateModel)
-		r.Get("/models/{model_id}", h.GetModel)
-		r.Patch("/models/{model_id}", h.UpdateModel)
-		r.Delete("/models/{model_id}", h.DeleteModel)
-
 		r.Get("/providers", h.ListProviders)
 		r.Post("/providers", h.CreateProvider)
 		r.Patch("/providers/{provider_id}", h.UpdateProvider)
-		r.Post("/providers/{provider_id}/toggle", h.ToggleProvider)
-		r.Post("/providers/reorder", h.ReorderProviders)
+		r.Delete("/providers/{provider_id}", h.DeleteProvider)
+
+		r.Get("/playground/llmhub/v1/providers", h.PlaygroundListProviders)
+		r.Get("/playground/llmhub/v1/model_schemas", h.PlaygroundListModelSchemas)
+		r.Post("/playground/llmhub/v1/chat_completion", h.PlaygroundChatCompletion)
 
 		r.Get("/retrieval/collections", h.ListRetrievalCollections)
 		r.Post("/retrieval/collections", h.CreateRetrievalCollection)

@@ -9,8 +9,6 @@ import (
 	apihttp "rotexai/core/api/internal/http"
 	"rotexai/core/api/internal/http/handlers"
 	ormdb "rotexai/core/orm/db"
-	modelsvc "rotexai/core/services/model"
-	providersvc "rotexai/core/services/provider"
 )
 
 type App struct {
@@ -29,22 +27,18 @@ func NewApp() (*App, error) {
 		return nil, fmt.Errorf("open db: %w", err)
 	}
 
-	// Phase 1: wire Model + Provider to ORM-backed services.
-	// Keep the rest on in-memory services until their repositories are implemented.
+	// Wire in-memory services for provider-only admin flow.
 	inMemory := appsvc.NewInMemoryServices()
-	modelRepo := modelsvc.NewGormRepository(conn)
-	providerRepo := providersvc.NewGormRepository(conn)
-	modelService := appsvc.NewModelServiceAdapter(modelsvc.NewService(modelRepo))
-	providerService := appsvc.NewProviderServiceAdapter(providersvc.NewService(providerRepo))
+	_ = conn
 
 	router := apihttp.NewRouter(handlers.Deps{
-		Dashboard: inMemory.Dashboard,
-		Tenant:    inMemory.Tenant,
-		Model:     modelService,
-		Provider:  providerService,
-		Retrieval: inMemory.Retrieval,
-		MCP:       inMemory.MCP,
-		Assistant: inMemory.Assistant,
+		Dashboard:    inMemory.Dashboard,
+		Tenant:       inMemory.Tenant,
+		Provider:     inMemory.Provider,
+		Retrieval:    inMemory.Retrieval,
+		MCP:          inMemory.MCP,
+		Assistant:    inMemory.Assistant,
+		LLMHubOrigin: cfg.LLMHub.Origin,
 	})
 
 	server := &http.Server{

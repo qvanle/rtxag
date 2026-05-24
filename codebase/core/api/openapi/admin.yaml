@@ -33,22 +33,6 @@ paths:
       summary: Delete tenant
       parameters: [{ name: id_internal, in: path, required: true, schema: { type: string } }]
       responses: { '200': { description: OK } }
-  /models:
-    get: { summary: List models, responses: { '200': { description: OK } } }
-    post: { summary: Create model, responses: { '201': { description: Created } } }
-  /models/{model_id}:
-    get:
-      summary: Get model
-      parameters: [{ name: model_id, in: path, required: true, schema: { type: string } }]
-      responses: { '200': { description: OK }, '404': { description: Not found } }
-    patch:
-      summary: Update model
-      parameters: [{ name: model_id, in: path, required: true, schema: { type: string } }]
-      responses: { '200': { description: OK } }
-    delete:
-      summary: Delete model
-      parameters: [{ name: model_id, in: path, required: true, schema: { type: string } }]
-      responses: { '200': { description: OK } }
   /providers:
     get: { summary: List providers, responses: { '200': { description: OK } } }
     post: { summary: Create provider, responses: { '201': { description: Created } } }
@@ -57,14 +41,9 @@ paths:
       summary: Update provider
       parameters: [{ name: provider_id, in: path, required: true, schema: { type: string } }]
       responses: { '200': { description: OK } }
-  /providers/{provider_id}/toggle:
-    post:
-      summary: Toggle provider
+    delete:
+      summary: Delete provider
       parameters: [{ name: provider_id, in: path, required: true, schema: { type: string } }]
-      responses: { '200': { description: OK } }
-  /providers/reorder:
-    post:
-      summary: Reorder providers
       responses: { '200': { description: OK } }
   /retrieval/collections:
     get: { summary: List retrieval collections, responses: { '200': { description: OK } } }

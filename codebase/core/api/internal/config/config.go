@@ -8,8 +8,9 @@ import (
 )
 
 type Config struct {
-	HTTP HTTPConfig
-	DB   DBConfig
+	HTTP   HTTPConfig
+	DB     DBConfig
+	LLMHub LLMHubConfig
 }
 
 type HTTPConfig struct {
@@ -23,6 +24,10 @@ type DBConfig struct {
 	DSN string
 }
 
+type LLMHubConfig struct {
+	Origin string
+}
+
 func Load() (Config, error) {
 	cfg := Config{
 		HTTP: HTTPConfig{
@@ -33,6 +38,9 @@ func Load() (Config, error) {
 		},
 		DB: DBConfig{
 			DSN: os.Getenv("ADMIN_API_DB_DSN"),
+		},
+		LLMHub: LLMHubConfig{
+			Origin: getOrDefault("LLMHUB_ORIGIN", "http://llmhub:8000"),
 		},
 	}
 
