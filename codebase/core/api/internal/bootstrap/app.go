@@ -8,7 +8,9 @@ import (
 	"rotexai/core/api/internal/config"
 	apihttp "rotexai/core/api/internal/http"
 	"rotexai/core/api/internal/http/handlers"
-	"rotexai/core/api/internal/infrastructure/db"
+	ormdb "rotexai/core/orm/db"
+	modelsvc "rotexai/core/services/model"
+	providersvc "rotexai/core/services/provider"
 )
 
 type App struct {
@@ -22,19 +24,26 @@ func NewApp() (*App, error) {
 		return nil, fmt.Errorf("load config: %w", err)
 	}
 
-	_, err = db.Open(cfg.DB.DSN)
+	conn, err := ormdb.Open(cfg.DB.DSN)
 	if err != nil {
 		return nil, fmt.Errorf("open db: %w", err)
 	}
 
-	svcs := appsvc.NewInMemoryServices()
+	// Phase 1: wire Model + Provider to ORM-backed services.
+	// Keep the rest on in-memory services until their repositories are implemented.
+	inMemory := appsvc.NewInMemoryServices()
+	modelRepo := modelsvc.NewGormRepository(conn)
+	providerRepo := providersvc.NewGormRepository(conn)
+	modelService := appsvc.NewModelServiceAdapter(modelsvc.NewService(modelRepo))
+	providerService := appsvc.NewProviderServiceAdapter(providersvc.NewService(providerRepo))
+
 	router := apihttp.NewRouter(handlers.Deps{
-		Dashboard: svcs.Dashboard,
-		Model:     svcs.Model,
-		Provider:  svcs.Provider,
-		Retrieval: svcs.Retrieval,
-		MCP:       svcs.MCP,
-		Assistant: svcs.Assistant,
+		Dashboard: inMemory.Dashboard,
+		Model:     modelService,
+		Provider:  providerService,
+		Retrieval: inMemory.Retrieval,
+		MCP:       inMemory.MCP,
+		Assistant: inMemory.Assistant,
 	})
 
 	server := &http.Server{
