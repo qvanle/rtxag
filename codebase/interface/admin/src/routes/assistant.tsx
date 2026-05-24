@@ -26,8 +26,29 @@ function Chip({ icon: Icon, label }: { icon: any; label: string }) {
 
 function AssistantsPage() {
   const [scope, setScope] = useState<"global" | "tenant">("global");
-  const assistantsQuery = useAdminQuery(["assistants", scope], () => adminApi.listAssistants(scope));
-  const filtered = useMemo(() => assistantsQuery.data ?? [], [assistantsQuery.data]);
+  const assistantsQuery = useAdminQuery(["assistants", scope], async () => {
+    if (scope === "global") return adminApi.listAssistants("global");
+    const tenants = await adminApi.listTenants();
+    const grouped = await Promise.all(
+      tenants.map(async (t) => ({
+        tenantId: t.id_internal,
+        tenantName: t.name,
+        assistants: await adminApi.listAssistantsByTenant(t.id_internal),
+      })),
+    );
+    return grouped;
+  });
+  const tenantGroups = useMemo(
+    () => (scope === "tenant" ? ((assistantsQuery.data as any[]) ?? []) : []),
+    [assistantsQuery.data, scope],
+  );
+  const filtered = useMemo(
+    () =>
+      scope === "tenant"
+        ? tenantGroups.flatMap((g) => g.assistants as Assistant[])
+        : ((assistantsQuery.data as Assistant[]) ?? []),
+    [assistantsQuery.data, scope, tenantGroups],
+  );
 
   const createAssistant = useAdminMutation(adminApi.createAssistant);
   const updateAssistant = useAdminMutation(({ id, body }: { id: string; body: any }) =>
@@ -105,7 +126,7 @@ function AssistantsPage() {
       )}
 
       <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-4">
-        {filtered.map((a) => (
+        {(scope === "tenant" ? filtered : filtered).map((a) => (
           <GlassCard key={a.id} className="flex flex-col">
             <div className="flex items-start justify-between gap-3">
               <div className="flex items-center gap-3">
@@ -171,6 +192,25 @@ function AssistantsPage() {
           </GlassCard>
         ))}
       </div>
+
+      {scope === "tenant" && (
+        <GlassCard>
+          <div className="text-sm font-semibold">Tenants And Assistants</div>
+          <div className="mt-3 space-y-3">
+            {tenantGroups.map((g) => (
+              <div key={g.tenantId} className="rounded-md border border-glass-border p-3">
+                <div className="text-sm font-medium">{g.tenantName} <span className="text-muted-foreground">({g.tenantId})</span></div>
+                <div className="text-xs text-muted-foreground mt-1">
+                  {(g.assistants as Assistant[]).length} assistant(s)
+                </div>
+              </div>
+            ))}
+            {tenantGroups.length === 0 && (
+              <div className="text-sm text-muted-foreground">No tenants found.</div>
+            )}
+          </div>
+        </GlassCard>
+      )}
 
       <GlassCard className="p-0 overflow-hidden">
         <div className="px-5 py-4 border-b border-glass-border">

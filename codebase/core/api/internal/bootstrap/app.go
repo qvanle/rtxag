@@ -39,6 +39,7 @@ func NewApp() (*App, error) {
 
 	router := apihttp.NewRouter(handlers.Deps{
 		Dashboard: inMemory.Dashboard,
+		Tenant:    inMemory.Tenant,
 		Model:     modelService,
 		Provider:  providerService,
 		Retrieval: inMemory.Retrieval,

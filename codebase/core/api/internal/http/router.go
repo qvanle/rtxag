@@ -33,6 +33,10 @@ func NewRouter(deps handlers.Deps) http.Handler {
 	r.Route("/api/admin", func(r chi.Router) {
 		r.Get("/dashboard/global", h.GetDashboardGlobal)
 		r.Get("/dashboard/tenants", h.ListDashboardTenants)
+		r.Get("/tenants", h.ListTenants)
+		r.Post("/tenants", h.CreateTenant)
+		r.Patch("/tenants/{id_internal}", h.UpdateTenant)
+		r.Delete("/tenants/{id_internal}", h.DeleteTenant)
 
 		r.Get("/models", h.ListModels)
 		r.Post("/models", h.CreateModel)

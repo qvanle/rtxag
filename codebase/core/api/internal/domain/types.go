@@ -48,6 +48,12 @@ type DashboardTenantRow struct {
 	TokenUsage string       `json:"token_usage"`
 }
 
+type Tenant struct {
+	IDInternal string `json:"id_internal"`
+	IDExternal string `json:"id_external"`
+	Name       string `json:"name"`
+}
+
 type Model struct {
 	ID        string    `json:"id"`
 	Name      string    `json:"name"`

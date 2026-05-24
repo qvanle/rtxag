@@ -26,6 +26,12 @@ export type DashboardTenantRow = {
   token_usage: string;
 };
 
+export type Tenant = {
+  id_internal: string;
+  id_external: string;
+  name: string;
+};
+
 export type Model = {
   id: string;
   name: string;
@@ -130,6 +136,7 @@ export const adminApi = {
   dashboardGlobal: () => request<DashboardGlobal>("/dashboard/global"),
   dashboardTenants: (plan?: string, status?: string) =>
     request<DashboardTenantRow[]>(`/dashboard/tenants${q({ page: 1, page_size: 100, plan, status })}`),
+  listTenants: () => request<Tenant[]>(`/tenants${q({ page: 1, page_size: 100 })}`),
 
   listModels: () => request<Model[]>("/models"),
   createModel: (body: { name: string; provider: string; version: string; status: Status }) =>
@@ -149,6 +156,10 @@ export const adminApi = {
 
   listRetrievalCollections: (scope: Scope) =>
     request<RetrievalCollection[]>(`/retrieval/collections${q({ scope })}`),
+  listRetrievalCollectionsByTenant: (tenantId: string) =>
+    request<RetrievalCollection[]>(`/retrieval/collections${q({ scope: "tenant" })}`, {
+      headers: { "Rotexai-Tenant-Id": tenantId },
+    }),
   createRetrievalCollection: (body: { scope: Scope; name: string; embedding_model_id: string }) =>
     request<RetrievalCollection>("/retrieval/collections", { method: "POST", body: JSON.stringify(body) }),
   updateRetrievalCollection: (id: string, body: { name?: string; embedding_model_id?: string }) =>
@@ -170,6 +181,10 @@ export const adminApi = {
     request<{ ok: boolean }>(`/retrieval/collections/${id}/reindex`, { method: "POST" }),
 
   listMCPCollections: (scope: Scope) => request<MCPCollection[]>(`/mcp/collections${q({ scope })}`),
+  listMCPCollectionsByTenant: (tenantId: string) =>
+    request<MCPCollection[]>(`/mcp/collections${q({ scope: "tenant" })}`, {
+      headers: { "Rotexai-Tenant-Id": tenantId },
+    }),
   createMCPCollection: (body: { scope: Scope; name: string }) =>
     request<MCPCollection>("/mcp/collections", { method: "POST", body: JSON.stringify(body) }),
   updateMCPCollection: (id: string, body: { name?: string }) =>
@@ -188,6 +203,10 @@ export const adminApi = {
     request<{ ok: boolean }>(`/mcp/collections/${collectionId}/records/${recordId}`, { method: "DELETE" }),
 
   listAssistants: (scope: Scope) => request<Assistant[]>(`/assistants${q({ scope })}`),
+  listAssistantsByTenant: (tenantId: string) =>
+    request<Assistant[]>(`/assistants${q({ scope: "tenant" })}`, {
+      headers: { "Rotexai-Tenant-Id": tenantId },
+    }),
   createAssistant: (body: {
     scope: Scope;
     name: string;

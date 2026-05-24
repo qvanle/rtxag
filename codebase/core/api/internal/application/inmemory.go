@@ -14,6 +14,7 @@ import (
 
 type InMemoryServices struct {
 	Dashboard DashboardService
+	Tenant    TenantService
 	Model     ModelService
 	Provider  ProviderService
 	Retrieval RetrievalService
@@ -25,6 +26,7 @@ func NewInMemoryServices() *InMemoryServices {
 	state := &memoryState{}
 	return &InMemoryServices{
 		Dashboard: &dashboardMemoryService{},
+		Tenant:    &tenantMemoryService{state: state},
 		Model:     &modelMemoryService{state: state},
 		Provider:  &providerMemoryService{state: state},
 		Retrieval: &retrievalMemoryService{state: state},
@@ -37,6 +39,7 @@ type memoryState struct {
 	mu          sync.RWMutex
 	models      map[string]domain.Model
 	providers   map[string]domain.Provider
+	tenants     map[string]domain.Tenant
 	retrievals  map[string]domain.RetrievalCollection
 	documents   map[string]domain.RetrievalDocument
 	mcpCols     map[string]domain.MCPCollection
@@ -51,6 +54,7 @@ func (s *memoryState) init() {
 	}
 	s.models = map[string]domain.Model{}
 	s.providers = map[string]domain.Provider{}
+	s.tenants = map[string]domain.Tenant{}
 	s.retrievals = map[string]domain.RetrievalCollection{}
 	s.documents = map[string]domain.RetrievalDocument{}
 	s.mcpCols = map[string]domain.MCPCollection{}
@@ -71,8 +75,83 @@ func (s *dashboardMemoryService) GetGlobal(context.Context) (domain.DashboardGlo
 	}, nil
 }
 
-func (s *dashboardMemoryService) ListTenants(context.Context, Pagination, string, string) ([]domain.DashboardTenantRow, error) {
+func (s *dashboardMemoryService) ListTenants(_ context.Context, _ Pagination, _ string, _ string) ([]domain.DashboardTenantRow, error) {
+	// Dashboard rows are synthetic in memory mode.
 	return []domain.DashboardTenantRow{}, nil
+}
+
+type tenantMemoryService struct{ state *memoryState }
+
+func (s *tenantMemoryService) List(_ context.Context, pagination Pagination) ([]domain.Tenant, error) {
+	s.state.mu.RLock()
+	defer s.state.mu.RUnlock()
+	rows := make([]domain.Tenant, 0, len(s.state.tenants))
+	for _, t := range s.state.tenants {
+		rows = append(rows, t)
+	}
+	// Keep behavior simple for now; pagination params are accepted for API compatibility.
+	_ = pagination
+	return rows, nil
+}
+
+func (s *tenantMemoryService) Create(_ context.Context, req CreateTenantRequest) (domain.Tenant, error) {
+	s.state.mu.Lock()
+	defer s.state.mu.Unlock()
+	s.state.init()
+	idInternal := strings.TrimSpace(req.IDInternal)
+	idExternal := strings.TrimSpace(req.IDExternal)
+	name := strings.TrimSpace(req.Name)
+	if idInternal == "" || idExternal == "" || name == "" {
+		return domain.Tenant{}, fmt.Errorf("id_internal, id_external, name are required")
+	}
+	if _, exists := s.state.tenants[idInternal]; exists {
+		return domain.Tenant{}, fmt.Errorf("tenant already exists")
+	}
+	for _, existing := range s.state.tenants {
+		if existing.IDExternal == idExternal {
+			return domain.Tenant{}, fmt.Errorf("id_external already exists")
+		}
+	}
+	t := domain.Tenant{IDInternal: idInternal, IDExternal: idExternal, Name: name}
+	s.state.tenants[t.IDInternal] = t
+	return t, nil
+}
+
+func (s *tenantMemoryService) Update(_ context.Context, idInternal string, req UpdateTenantRequest) (domain.Tenant, error) {
+	s.state.mu.Lock()
+	defer s.state.mu.Unlock()
+	t, ok := s.state.tenants[idInternal]
+	if !ok {
+		return domain.Tenant{}, fmt.Errorf("tenant not found")
+	}
+	if req.IDExternal != nil {
+		nextExternal := strings.TrimSpace(*req.IDExternal)
+		if nextExternal == "" {
+			return domain.Tenant{}, fmt.Errorf("id_external cannot be empty")
+		}
+		for id, existing := range s.state.tenants {
+			if id != idInternal && existing.IDExternal == nextExternal {
+				return domain.Tenant{}, fmt.Errorf("id_external already exists")
+			}
+		}
+		t.IDExternal = nextExternal
+	}
+	if req.Name != nil {
+		nextName := strings.TrimSpace(*req.Name)
+		if nextName == "" {
+			return domain.Tenant{}, fmt.Errorf("name cannot be empty")
+		}
+		t.Name = nextName
+	}
+	s.state.tenants[idInternal] = t
+	return t, nil
+}
+
+func (s *tenantMemoryService) Delete(_ context.Context, idInternal string) error {
+	s.state.mu.Lock()
+	defer s.state.mu.Unlock()
+	delete(s.state.tenants, idInternal)
+	return nil
 }
 
 type modelMemoryService struct{ state *memoryState }

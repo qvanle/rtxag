@@ -17,10 +17,28 @@ export const Route = createFileRoute("/mcp")({
 
 function MCPPage() {
   const [scope, setScope] = useState<"global" | "tenant">("global");
-  const collectionsQuery = useAdminQuery(["mcp", "collections", scope], () =>
-    adminApi.listMCPCollections(scope),
+  const collectionsQuery = useAdminQuery(["mcp", "collections", scope], async () => {
+    if (scope === "global") return adminApi.listMCPCollections("global");
+    const tenants = await adminApi.listTenants();
+    return Promise.all(
+      tenants.map(async (t) => ({
+        tenantId: t.id_internal,
+        tenantName: t.name,
+        collections: await adminApi.listMCPCollectionsByTenant(t.id_internal),
+      })),
+    );
+  });
+  const tenantGroups = useMemo(
+    () => (scope === "tenant" ? ((collectionsQuery.data as any[]) ?? []) : []),
+    [collectionsQuery.data, scope],
   );
-  const collections = collectionsQuery.data ?? [];
+  const collections = useMemo(
+    () =>
+      scope === "tenant"
+        ? tenantGroups.flatMap((g) => g.collections)
+        : ((collectionsQuery.data as any[]) ?? []),
+    [collectionsQuery.data, scope, tenantGroups],
+  );
 
   const [selectedId, setSelectedId] = useState<string>("");
   useEffect(() => {
@@ -86,28 +104,60 @@ function MCPPage() {
             Collections
           </div>
           <ul className="divide-y divide-glass-border/60">
-            {collections.map((c) => (
-              <li key={c.id}>
-                <button
-                  onClick={() => setSelectedId(c.id)}
-                  className={cn(
-                    "w-full text-left px-4 py-3 flex items-center gap-3 hover:bg-accent/40 transition",
-                    selected?.id === c.id && "bg-accent/50",
-                  )}
-                >
-                  <div className="h-9 w-9 rounded-lg bg-gradient-primary grid place-items-center shrink-0">
-                    <Plug className="h-4 w-4 text-primary-foreground" />
-                  </div>
-                  <div className="flex-1 min-w-0">
-                    <div className="font-medium text-sm truncate">{c.name}</div>
-                    <div className="text-xs text-muted-foreground truncate">
-                      {c.tenant_id ?? "Global"} · {c.record_count} records
+            {scope === "tenant"
+              ? tenantGroups.map((group) => (
+                  <li key={group.tenantId}>
+                    <div className="px-4 py-2 text-[11px] uppercase tracking-wider text-muted-foreground bg-muted/20">
+                      {group.tenantName} ({group.tenantId})
                     </div>
-                  </div>
-                  <ChevronRight className="h-4 w-4 text-muted-foreground" />
-                </button>
-              </li>
-            ))}
+                    <ul className="divide-y divide-glass-border/60">
+                      {group.collections.map((c: any) => (
+                        <li key={c.id}>
+                          <button
+                            onClick={() => setSelectedId(c.id)}
+                            className={cn(
+                              "w-full text-left px-4 py-3 flex items-center gap-3 hover:bg-accent/40 transition",
+                              selected?.id === c.id && "bg-accent/50",
+                            )}
+                          >
+                            <div className="h-9 w-9 rounded-lg bg-gradient-primary grid place-items-center shrink-0">
+                              <Plug className="h-4 w-4 text-primary-foreground" />
+                            </div>
+                            <div className="flex-1 min-w-0">
+                              <div className="font-medium text-sm truncate">{c.name}</div>
+                              <div className="text-xs text-muted-foreground truncate">
+                                {c.tenant_id ?? "Global"} · {c.record_count} records
+                              </div>
+                            </div>
+                            <ChevronRight className="h-4 w-4 text-muted-foreground" />
+                          </button>
+                        </li>
+                      ))}
+                    </ul>
+                  </li>
+                ))
+              : collections.map((c: any) => (
+                  <li key={c.id}>
+                    <button
+                      onClick={() => setSelectedId(c.id)}
+                      className={cn(
+                        "w-full text-left px-4 py-3 flex items-center gap-3 hover:bg-accent/40 transition",
+                        selected?.id === c.id && "bg-accent/50",
+                      )}
+                    >
+                      <div className="h-9 w-9 rounded-lg bg-gradient-primary grid place-items-center shrink-0">
+                        <Plug className="h-4 w-4 text-primary-foreground" />
+                      </div>
+                      <div className="flex-1 min-w-0">
+                        <div className="font-medium text-sm truncate">{c.name}</div>
+                        <div className="text-xs text-muted-foreground truncate">
+                          {c.tenant_id ?? "Global"} · {c.record_count} records
+                        </div>
+                      </div>
+                      <ChevronRight className="h-4 w-4 text-muted-foreground" />
+                    </button>
+                  </li>
+                ))}
             {collections.length === 0 && (
               <li className="px-4 py-8 text-center text-sm text-muted-foreground">
                 No collections in this scope.

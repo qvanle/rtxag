@@ -16,6 +16,13 @@ type DashboardService interface {
 	ListTenants(ctx context.Context, pagination Pagination, plan, status string) ([]domain.DashboardTenantRow, error)
 }
 
+type TenantService interface {
+	List(ctx context.Context, pagination Pagination) ([]domain.Tenant, error)
+	Create(ctx context.Context, req CreateTenantRequest) (domain.Tenant, error)
+	Update(ctx context.Context, idInternal string, req UpdateTenantRequest) (domain.Tenant, error)
+	Delete(ctx context.Context, idInternal string) error
+}
+
 type ModelService interface {
 	List(ctx context.Context) ([]domain.Model, error)
 	Create(ctx context.Context, req CreateModelRequest) (domain.Model, error)
@@ -140,4 +147,15 @@ type UpdateAssistantRequest struct {
 type CloneAssistantRequest struct {
 	TargetScope    domain.Scope `json:"target_scope"`
 	TargetTenantID string       `json:"target_tenant_id,omitempty"`
+}
+
+type CreateTenantRequest struct {
+	IDInternal string `json:"id_internal"`
+	IDExternal string `json:"id_external"`
+	Name       string `json:"name"`
+}
+
+type UpdateTenantRequest struct {
+	IDExternal *string `json:"id_external,omitempty"`
+	Name       *string `json:"name,omitempty"`
 }

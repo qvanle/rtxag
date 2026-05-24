@@ -15,6 +15,24 @@ paths:
       summary: List tenant dashboard rows
       responses:
         '200': { description: OK }
+  /tenants:
+    get:
+      summary: List tenants
+      responses:
+        '200': { description: OK }
+    post:
+      summary: Create tenant
+      responses:
+        '201': { description: Created }
+  /tenants/{id_internal}:
+    patch:
+      summary: Update tenant
+      parameters: [{ name: id_internal, in: path, required: true, schema: { type: string } }]
+      responses: { '200': { description: OK } }
+    delete:
+      summary: Delete tenant
+      parameters: [{ name: id_internal, in: path, required: true, schema: { type: string } }]
+      responses: { '200': { description: OK } }
   /models:
     get: { summary: List models, responses: { '200': { description: OK } } }
     post: { summary: Create model, responses: { '201': { description: Created } } }

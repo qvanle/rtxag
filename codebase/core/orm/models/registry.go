@@ -2,6 +2,7 @@ package models
 
 func AllModels() []interface{} {
 	return []interface{}{
+		&Tenant{},
 		&Plan{},
 		&Provider{},
 		&Model{},
