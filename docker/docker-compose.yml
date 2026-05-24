@@ -11,8 +11,6 @@ services:
       POSTGRES_USER: ${POSTGRES_USER}
       POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
       POSTGRES_DB: ${POSTGRES_DB}
-    ports:
-      - "${POSTGRES_PORT}:5432"
     volumes:
       - ${HOME}/rotexai-runtime/rtxag/postgres:/var/lib/postgresql/data
     healthcheck:
@@ -20,6 +18,8 @@ services:
       interval: 5s
       timeout: 5s
       retries: 20
+    networks:
+      - backend
 
   qdrant:
     build:
@@ -29,9 +29,6 @@ services:
     restart: unless-stopped
     env_file:
       - .env
-    ports:
-      - "${QDRANT_HTTP_PORT}:6333"
-      - "${QDRANT_GRPC_PORT}:6334"
     volumes:
       - ${HOME}/rotexai-runtime/rtxag/qdrant:/qdrant/storage
     healthcheck:
@@ -39,6 +36,8 @@ services:
       interval: 5s
       timeout: 5s
       retries: 20
+    networks:
+      - backend
 
   adminapi:
     build:
@@ -54,10 +53,15 @@ services:
       ADMIN_API_DB_DSN: postgres://${POSTGRES_USER}:${POSTGRES_PASSWORD}@postgres:5432/${POSTGRES_DB}?sslmode=disable
       ROTEXAI_ORM_DSN: postgres://${POSTGRES_USER}:${POSTGRES_PASSWORD}@postgres:5432/${POSTGRES_DB}?sslmode=disable
       ADMIN_API_ADDR: :8080
+      LLMHUB_ORIGIN: http://llmhub:8000
     ports:
       - "${ADMIN_API_PORT}:8080"
     command: ["start"]
     restart: unless-stopped
+    networks:
+      - frontend
+      - backend
+      - llmhub
 
   llmhub:
     build:
@@ -72,14 +76,14 @@ services:
       AES_ENCRYPTION_KEY: ${LLMHUB_AES_ENCRYPTION_KEY}
       ICON_URL_PREFIX: ${LLMHUB_HOST_URL}
       PROJECT_ID: ${LLMHUB_PROJECT_ID}
-    ports:
-      - "${LLMHUB_PORT}:8000"
     healthcheck:
       test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://localhost:8000/v1/health_check', timeout=5).read()"]
       interval: 15s
       timeout: 10s
       retries: 5
       start_period: 30s
+    networks:
+      - llmhub
 
   adminui:
     build:
@@ -94,3 +98,11 @@ services:
         condition: service_started
     ports:
       - "${ADMIN_UI_PORT}:3000"
+    networks:
+      - frontend
+
+networks:
+  frontend:
+  backend:
+    internal: true
+  llmhub:
