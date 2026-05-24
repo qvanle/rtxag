@@ -58,3 +58,25 @@ services:
       - "${ADMIN_API_PORT}:8080"
     command: ["start"]
     restart: unless-stopped
+
+  llmhub:
+    build:
+      context: ../codebase/llmhub
+      dockerfile: docker/Dockerfile
+    container_name: rtxag-llmhub
+    restart: unless-stopped
+    env_file:
+      - .env
+    environment:
+      MODE: ${LLMHUB_MODE}
+      AES_ENCRYPTION_KEY: ${LLMHUB_AES_ENCRYPTION_KEY}
+      ICON_URL_PREFIX: ${LLMHUB_HOST_URL}
+      PROJECT_ID: ${LLMHUB_PROJECT_ID}
+    ports:
+      - "${LLMHUB_PORT}:8000"
+    healthcheck:
+      test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://localhost:8000/v1/health_check', timeout=5).read()"]
+      interval: 15s
+      timeout: 10s
+      retries: 5
+      start_period: 30s
