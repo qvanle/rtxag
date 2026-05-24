@@ -5,11 +5,18 @@ import {
   DataTable,
   GlassCard,
   PageHeader,
-  ScopeSwitcher,
   StatusBadge,
 } from "@/components/admin/primitives";
 import { Plus, Bot, Cpu, Database, Plug } from "lucide-react";
 import { adminApi, type Assistant, useAdminMutation, useAdminQuery } from "@/lib/admin-api";
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog";
 
 export const Route = createFileRoute("/assistant")({
   component: AssistantsPage,
@@ -25,29 +32,45 @@ function Chip({ icon: Icon, label }: { icon: any; label: string }) {
 }
 
 function AssistantsPage() {
-  const [scope, setScope] = useState<"global" | "tenant">("global");
-  const assistantsQuery = useAdminQuery(["assistants", scope], async () => {
-    if (scope === "global") return adminApi.listAssistants("global");
+  const [isCreateOpen, setIsCreateOpen] = useState(false);
+  const [form, setForm] = useState({
+    scope: "global" as "global" | "tenant",
+    tenant_id: "",
+    name: "",
+    model_id: "",
+    retrieval_collection_id: "",
+    mcp_collection_id: "",
+  });
+  const tenantsQuery = useAdminQuery(["assistants", "tenants"], adminApi.listTenants);
+  const modelsQuery = useAdminQuery(["assistants", "models"], adminApi.listModels);
+  const retrievalOptionsQuery = useAdminQuery(["assistants", "retrieval-options"], async () => {
+    const globalCols = await adminApi.listRetrievalCollections("global");
     const tenants = await adminApi.listTenants();
-    const grouped = await Promise.all(
+    const perTenant = await Promise.all(tenants.map((t) => adminApi.listRetrievalCollectionsByTenant(t.id_internal)));
+    return [...globalCols, ...perTenant.flat()];
+  });
+  const mcpOptionsQuery = useAdminQuery(["assistants", "mcp-options"], async () => {
+    const globalCols = await adminApi.listMCPCollections("global");
+    const tenants = await adminApi.listTenants();
+    const perTenant = await Promise.all(tenants.map((t) => adminApi.listMCPCollectionsByTenant(t.id_internal)));
+    return [...globalCols, ...perTenant.flat()];
+  });
+  const assistantsQuery = useAdminQuery(["assistants", "merged"], async () => {
+    const globalAssistants = await adminApi.listAssistants("global");
+    const tenants = await adminApi.listTenants();
+    const tenantAssistants = await Promise.all(
       tenants.map(async (t) => ({
-        tenantId: t.id_internal,
-        tenantName: t.name,
         assistants: await adminApi.listAssistantsByTenant(t.id_internal),
       })),
     );
-    return grouped;
+    return [
+      ...globalAssistants,
+      ...tenantAssistants.flatMap((g) => g.assistants),
+    ];
   });
-  const tenantGroups = useMemo(
-    () => (scope === "tenant" ? ((assistantsQuery.data as any[]) ?? []) : []),
-    [assistantsQuery.data, scope],
-  );
   const filtered = useMemo(
-    () =>
-      scope === "tenant"
-        ? tenantGroups.flatMap((g) => g.assistants as Assistant[])
-        : ((assistantsQuery.data as Assistant[]) ?? []),
-    [assistantsQuery.data, scope, tenantGroups],
+    () => (assistantsQuery.data as Assistant[]) ?? [],
+    [assistantsQuery.data],
   );
 
   const createAssistant = useAdminMutation(adminApi.createAssistant);
@@ -61,27 +84,34 @@ function AssistantsPage() {
   );
 
   const onCreate = () => {
-    const name = window.prompt("Assistant name?");
-    if (!name) return;
-    const modelIdsRaw = window.prompt("Model IDs (comma-separated)", "") ?? "";
-    const retrievalIdsRaw = window.prompt("Retrieval collection IDs (comma-separated)", "") ?? "";
-    const mcpIdsRaw = window.prompt("MCP collection IDs (comma-separated)", "") ?? "";
-
-    const model_ids = modelIdsRaw.split(",").map((x) => x.trim()).filter(Boolean);
-    const retrieval_collection_ids = retrievalIdsRaw.split(",").map((x) => x.trim()).filter(Boolean);
-    const mcp_collection_ids = mcpIdsRaw.split(",").map((x) => x.trim()).filter(Boolean);
+    const model_ids = form.model_id ? [form.model_id] : [];
+    const retrieval_collection_ids = form.retrieval_collection_id ? [form.retrieval_collection_id] : [];
+    const mcp_collection_ids = form.mcp_collection_id ? [form.mcp_collection_id] : [];
     if (!model_ids.length) {
       window.alert("At least one model_id is required");
       return;
     }
+    if (form.scope === "tenant" && !form.tenant_id) {
+      window.alert("Tenant is required for tenant scope");
+      return;
+    }
 
-    createAssistant.mutate({
-      scope,
-      name,
-      model_ids,
-      retrieval_collection_ids,
-      mcp_collection_ids,
-    });
+    createAssistant.mutate(
+      {
+        scope: form.scope,
+        tenant_id: form.scope === "tenant" ? form.tenant_id : undefined,
+        name: form.name.trim(),
+        model_ids,
+        retrieval_collection_ids,
+        mcp_collection_ids,
+      },
+      {
+        onSuccess: () => {
+          setIsCreateOpen(false);
+          setForm({ scope: "global", tenant_id: "", name: "", model_id: "", retrieval_collection_id: "", mcp_collection_id: "" });
+        },
+      },
+    );
   };
 
   const onEdit = (a: Assistant) => {
@@ -112,21 +142,61 @@ function AssistantsPage() {
         title="Assistants"
         description="Compose assistants from Models, Retrieval collections and MCP collections."
         actions={
-          <>
-            <ScopeSwitcher value={scope} onChange={setScope} />
-            <ActionButton onClick={onCreate}>
-              <Plus className="h-4 w-4" /> New Assistant
-            </ActionButton>
-          </>
+          <ActionButton onClick={() => setIsCreateOpen(true)}>
+            <Plus className="h-4 w-4" /> New Assistant
+          </ActionButton>
         }
       />
+      <Dialog open={isCreateOpen} onOpenChange={setIsCreateOpen}>
+        <DialogContent className="glass border-glass-border bg-gradient-to-b from-background to-muted/30 sm:max-w-xl">
+          <DialogHeader>
+            <DialogTitle>New Assistant</DialogTitle>
+            <DialogDescription>Compose assistant inputs with model, retrieval and MCP IDs.</DialogDescription>
+          </DialogHeader>
+          <div className="grid grid-cols-1 gap-3">
+            <select className="h-10 rounded-md border border-glass-border bg-background px-3 text-sm" value={form.scope} onChange={(e) => setForm((v) => ({ ...v, scope: e.target.value as "global" | "tenant", tenant_id: e.target.value === "tenant" ? v.tenant_id : "" }))}>
+              <option value="global">Global</option>
+              <option value="tenant">Per Tenant</option>
+            </select>
+            <select className="h-10 rounded-md border border-glass-border bg-background px-3 text-sm" value={form.tenant_id} onChange={(e) => setForm((v) => ({ ...v, tenant_id: e.target.value }))} disabled={form.scope !== "tenant"}>
+              <option value="">Select tenant</option>
+              {(tenantsQuery.data ?? []).map((t) => (
+                <option key={t.id_internal} value={t.id_internal}>{t.name}</option>
+              ))}
+            </select>
+            <input className="h-10 rounded-md border border-glass-border bg-transparent px-3 text-sm" placeholder="Assistant name" value={form.name} onChange={(e) => setForm((v) => ({ ...v, name: e.target.value }))} />
+            <select className="h-10 rounded-md border border-glass-border bg-background px-3 text-sm" value={form.model_id} onChange={(e) => setForm((v) => ({ ...v, model_id: e.target.value }))}>
+              <option value="">Select model</option>
+              {(modelsQuery.data ?? []).map((m) => (
+                <option key={m.id} value={m.id}>{m.name} ({m.id})</option>
+              ))}
+            </select>
+            <select className="h-10 rounded-md border border-glass-border bg-background px-3 text-sm" value={form.retrieval_collection_id} onChange={(e) => setForm((v) => ({ ...v, retrieval_collection_id: e.target.value }))}>
+              <option value="">Select retrieval collection (optional)</option>
+              {(retrievalOptionsQuery.data ?? []).map((r) => (
+                <option key={r.id} value={r.id}>{r.name} ({r.tenant_id ?? "Global"})</option>
+              ))}
+            </select>
+            <select className="h-10 rounded-md border border-glass-border bg-background px-3 text-sm" value={form.mcp_collection_id} onChange={(e) => setForm((v) => ({ ...v, mcp_collection_id: e.target.value }))}>
+              <option value="">Select MCP collection (optional)</option>
+              {(mcpOptionsQuery.data ?? []).map((mc) => (
+                <option key={mc.id} value={mc.id}>{mc.name} ({mc.tenant_id ?? "Global"})</option>
+              ))}
+            </select>
+          </div>
+          <DialogFooter>
+            <ActionButton variant="ghost" onClick={() => setIsCreateOpen(false)}>Cancel</ActionButton>
+            <ActionButton onClick={onCreate} disabled={createAssistant.isPending}>Create Assistant</ActionButton>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
 
       {!!assistantsQuery.error && (
         <div className="text-sm text-destructive">{(assistantsQuery.error as Error).message}</div>
       )}
 
       <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-4">
-        {(scope === "tenant" ? filtered : filtered).map((a) => (
+        {filtered.map((a) => (
           <GlassCard key={a.id} className="flex flex-col">
             <div className="flex items-start justify-between gap-3">
               <div className="flex items-center gap-3">
@@ -173,7 +243,7 @@ function AssistantsPage() {
               <ActionButton
                 variant="ghost"
                 className="justify-center"
-                onClick={() => cloneAssistant.mutate({ id: a.id, target_scope: scope })}
+                onClick={() => cloneAssistant.mutate({ id: a.id, target_scope: a.scope })}
               >
                 Clone
               </ActionButton>
@@ -193,34 +263,16 @@ function AssistantsPage() {
         ))}
       </div>
 
-      {scope === "tenant" && (
-        <GlassCard>
-          <div className="text-sm font-semibold">Tenants And Assistants</div>
-          <div className="mt-3 space-y-3">
-            {tenantGroups.map((g) => (
-              <div key={g.tenantId} className="rounded-md border border-glass-border p-3">
-                <div className="text-sm font-medium">{g.tenantName} <span className="text-muted-foreground">({g.tenantId})</span></div>
-                <div className="text-xs text-muted-foreground mt-1">
-                  {(g.assistants as Assistant[]).length} assistant(s)
-                </div>
-              </div>
-            ))}
-            {tenantGroups.length === 0 && (
-              <div className="text-sm text-muted-foreground">No tenants found.</div>
-            )}
-          </div>
-        </GlassCard>
-      )}
-
       <GlassCard className="p-0 overflow-hidden">
         <div className="px-5 py-4 border-b border-glass-border">
           <div className="text-sm font-semibold">All assistants ({filtered.length})</div>
         </div>
         <DataTable
-          columns={["Name", "Scope", "Models", "Retrieval", "MCP", "Version", "Status"]}
+          columns={["Tenant", "Name", "Scope", "Models", "Retrieval", "MCP", "Version", "Status"]}
           rows={filtered.map((a) => [
+            <span key="t" className="text-muted-foreground">{a.tenant_id ?? "Global"}</span>,
             <span key="n" className="font-medium">{a.name}</span>,
-            <span key="s" className="text-muted-foreground">{a.tenant_id ?? "Global"}</span>,
+            <span key="s" className="text-muted-foreground capitalize">{a.scope}</span>,
             <span key="m" className="text-foreground/80">{a.model_ids.join(", ")}</span>,
             <span key="r" className="text-foreground/80">{a.retrieval_collection_ids.join(", ") || "-"}</span>,
             <span key="mc" className="text-foreground/80">{a.mcp_collection_ids.join(", ") || "-"}</span>,

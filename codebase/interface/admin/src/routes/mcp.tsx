@@ -5,39 +5,44 @@ import {
   DataTable,
   GlassCard,
   PageHeader,
-  ScopeSwitcher,
 } from "@/components/admin/primitives";
 import { cn } from "@/lib/utils";
 import { Plus, Plug, ChevronRight } from "lucide-react";
 import { adminApi, formatDate, useAdminMutation, useAdminQuery } from "@/lib/admin-api";
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog";
 
 export const Route = createFileRoute("/mcp")({
   component: MCPPage,
 });
 
 function MCPPage() {
-  const [scope, setScope] = useState<"global" | "tenant">("global");
-  const collectionsQuery = useAdminQuery(["mcp", "collections", scope], async () => {
-    if (scope === "global") return adminApi.listMCPCollections("global");
+  const [isCreateOpen, setIsCreateOpen] = useState(false);
+  const [createName, setCreateName] = useState("");
+  const [createTenantID, setCreateTenantID] = useState("");
+  const tenantsQuery = useAdminQuery(["mcp", "tenants"], adminApi.listTenants);
+  const collectionsQuery = useAdminQuery(["mcp", "collections", "merged"], async () => {
+    const globalCollections = await adminApi.listMCPCollections("global");
     const tenants = await adminApi.listTenants();
-    return Promise.all(
+    const tenantCollections = await Promise.all(
       tenants.map(async (t) => ({
-        tenantId: t.id_internal,
-        tenantName: t.name,
         collections: await adminApi.listMCPCollectionsByTenant(t.id_internal),
       })),
     );
+    return [
+      ...globalCollections,
+      ...tenantCollections.flatMap((g) => g.collections),
+    ];
   });
-  const tenantGroups = useMemo(
-    () => (scope === "tenant" ? ((collectionsQuery.data as any[]) ?? []) : []),
-    [collectionsQuery.data, scope],
-  );
   const collections = useMemo(
-    () =>
-      scope === "tenant"
-        ? tenantGroups.flatMap((g) => g.collections)
-        : ((collectionsQuery.data as any[]) ?? []),
-    [collectionsQuery.data, scope, tenantGroups],
+    () => (collectionsQuery.data as any[]) ?? [],
+    [collectionsQuery.data],
   );
 
   const [selectedId, setSelectedId] = useState<string>("");
@@ -76,6 +81,23 @@ function MCPPage() {
   const deleteRecord = useAdminMutation(({ collectionId, recordId }: { collectionId: string; recordId: string }) =>
     adminApi.deleteMCPRecord(collectionId, recordId),
   );
+  const onCreateCollection = () => {
+    const name = createName.trim();
+    if (!name || !createTenantID) {
+      window.alert("Tenant and collection name are required");
+      return;
+    }
+    createCollection.mutate(
+      { scope: "tenant", tenant_id: createTenantID, name },
+      {
+        onSuccess: () => {
+          setIsCreateOpen(false);
+          setCreateName("");
+          setCreateTenantID("");
+        },
+      },
+    );
+  };
 
   return (
     <div className="space-y-6">
@@ -84,19 +106,33 @@ function MCPPage() {
         description="Model Context Protocol collections. Each collection groups tool records exposed to assistants."
         actions={
           <>
-            <ScopeSwitcher value={scope} onChange={setScope} />
-            <ActionButton
-              onClick={() => {
-                const name = window.prompt("Collection name?");
-                if (!name) return;
-                createCollection.mutate({ scope, name });
-              }}
-            >
+            <ActionButton onClick={() => setIsCreateOpen(true)}>
               <Plus className="h-4 w-4" /> New Collection
             </ActionButton>
           </>
         }
       />
+      <Dialog open={isCreateOpen} onOpenChange={setIsCreateOpen}>
+        <DialogContent className="glass border-glass-border bg-gradient-to-b from-background to-muted/30 sm:max-w-xl">
+          <DialogHeader>
+            <DialogTitle>New MCP Collection</DialogTitle>
+            <DialogDescription>Create a collection for MCP records exposed to assistants.</DialogDescription>
+          </DialogHeader>
+          <div className="grid grid-cols-1 gap-3">
+            <select className="h-10 rounded-md border border-glass-border bg-background px-3 text-sm" value={createTenantID} onChange={(e) => setCreateTenantID(e.target.value)}>
+              <option value="">Select tenant</option>
+              {(tenantsQuery.data ?? []).map((t) => (
+                <option key={t.id_internal} value={t.id_internal}>{t.name}</option>
+              ))}
+            </select>
+            <input className="h-10 rounded-md border border-glass-border bg-transparent px-3 text-sm" placeholder="Collection name" value={createName} onChange={(e) => setCreateName(e.target.value)} />
+          </div>
+          <DialogFooter>
+            <ActionButton variant="ghost" onClick={() => setIsCreateOpen(false)}>Cancel</ActionButton>
+            <ActionButton onClick={onCreateCollection} disabled={createCollection.isPending}>Create Collection</ActionButton>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
 
       <div className="grid grid-cols-1 lg:grid-cols-[340px,1fr] gap-4">
         <GlassCard className="p-0 overflow-hidden">
@@ -104,63 +140,31 @@ function MCPPage() {
             Collections
           </div>
           <ul className="divide-y divide-glass-border/60">
-            {scope === "tenant"
-              ? tenantGroups.map((group) => (
-                  <li key={group.tenantId}>
-                    <div className="px-4 py-2 text-[11px] uppercase tracking-wider text-muted-foreground bg-muted/20">
-                      {group.tenantName} ({group.tenantId})
+            {collections.map((c: any) => (
+              <li key={c.id}>
+                <button
+                  onClick={() => setSelectedId(c.id)}
+                  className={cn(
+                    "w-full text-left px-4 py-3 flex items-center gap-3 hover:bg-accent/40 transition",
+                    selected?.id === c.id && "bg-accent/50",
+                  )}
+                >
+                  <div className="h-9 w-9 rounded-lg bg-gradient-primary grid place-items-center shrink-0">
+                    <Plug className="h-4 w-4 text-primary-foreground" />
+                  </div>
+                  <div className="flex-1 min-w-0">
+                    <div className="font-medium text-sm truncate">{c.name}</div>
+                    <div className="text-xs text-muted-foreground truncate">
+                      {c.tenant_id ?? "Global"} · {c.record_count} records
                     </div>
-                    <ul className="divide-y divide-glass-border/60">
-                      {group.collections.map((c: any) => (
-                        <li key={c.id}>
-                          <button
-                            onClick={() => setSelectedId(c.id)}
-                            className={cn(
-                              "w-full text-left px-4 py-3 flex items-center gap-3 hover:bg-accent/40 transition",
-                              selected?.id === c.id && "bg-accent/50",
-                            )}
-                          >
-                            <div className="h-9 w-9 rounded-lg bg-gradient-primary grid place-items-center shrink-0">
-                              <Plug className="h-4 w-4 text-primary-foreground" />
-                            </div>
-                            <div className="flex-1 min-w-0">
-                              <div className="font-medium text-sm truncate">{c.name}</div>
-                              <div className="text-xs text-muted-foreground truncate">
-                                {c.tenant_id ?? "Global"} · {c.record_count} records
-                              </div>
-                            </div>
-                            <ChevronRight className="h-4 w-4 text-muted-foreground" />
-                          </button>
-                        </li>
-                      ))}
-                    </ul>
-                  </li>
-                ))
-              : collections.map((c: any) => (
-                  <li key={c.id}>
-                    <button
-                      onClick={() => setSelectedId(c.id)}
-                      className={cn(
-                        "w-full text-left px-4 py-3 flex items-center gap-3 hover:bg-accent/40 transition",
-                        selected?.id === c.id && "bg-accent/50",
-                      )}
-                    >
-                      <div className="h-9 w-9 rounded-lg bg-gradient-primary grid place-items-center shrink-0">
-                        <Plug className="h-4 w-4 text-primary-foreground" />
-                      </div>
-                      <div className="flex-1 min-w-0">
-                        <div className="font-medium text-sm truncate">{c.name}</div>
-                        <div className="text-xs text-muted-foreground truncate">
-                          {c.tenant_id ?? "Global"} · {c.record_count} records
-                        </div>
-                      </div>
-                      <ChevronRight className="h-4 w-4 text-muted-foreground" />
-                    </button>
-                  </li>
-                ))}
+                  </div>
+                  <ChevronRight className="h-4 w-4 text-muted-foreground" />
+                </button>
+              </li>
+            ))}
             {collections.length === 0 && (
               <li className="px-4 py-8 text-center text-sm text-muted-foreground">
-                No collections in this scope.
+                No collections found.
               </li>
             )}
           </ul>
@@ -220,8 +224,9 @@ function MCPPage() {
                   </ActionButton>
                 </div>
                 <DataTable
-                  columns={["Key", "Value", "Updated", "Actions"]}
+                  columns={["Tenant", "Key", "Value", "Updated", "Actions"]}
                   rows={records.map((r) => [
+                    <span key="tt" className="text-muted-foreground">{selected.tenant_id ?? "Global"}</span>,
                     <span key="n" className="font-medium">{r.key}</span>,
                     <code key="e" className="text-xs font-mono text-foreground/80 bg-muted/40 px-2 py-1 rounded">
                       {r.value}

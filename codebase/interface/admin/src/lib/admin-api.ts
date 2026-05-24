@@ -139,6 +139,10 @@ export const adminApi = {
   listTenants: () => request<Tenant[]>(`/tenants${q({ page: 1, page_size: 100 })}`),
   createTenant: (body: { id_internal: string; id_external: string; name: string }) =>
     request<Tenant>("/tenants", { method: "POST", body: JSON.stringify(body) }),
+  updateTenant: (idInternal: string, body: { id_external?: string; name?: string }) =>
+    request<Tenant>(`/tenants/${idInternal}`, { method: "PATCH", body: JSON.stringify(body) }),
+  deleteTenant: (idInternal: string) =>
+    request<{ ok: boolean }>(`/tenants/${idInternal}`, { method: "DELETE" }),
 
   listModels: () => request<Model[]>("/models"),
   createModel: (body: { name: string; provider: string; version: string; status: Status }) =>
@@ -162,7 +166,7 @@ export const adminApi = {
     request<RetrievalCollection[]>(`/retrieval/collections${q({ scope: "tenant" })}`, {
       headers: { "Rotexai-Tenant-Id": tenantId },
     }),
-  createRetrievalCollection: (body: { scope: Scope; name: string; embedding_model_id: string }) =>
+  createRetrievalCollection: (body: { scope: Scope; name: string; embedding_model_id: string; tenant_id?: string }) =>
     request<RetrievalCollection>("/retrieval/collections", { method: "POST", body: JSON.stringify(body) }),
   updateRetrievalCollection: (id: string, body: { name?: string; embedding_model_id?: string }) =>
     request<RetrievalCollection>(`/retrieval/collections/${id}`, { method: "PATCH", body: JSON.stringify(body) }),
@@ -187,7 +191,7 @@ export const adminApi = {
     request<MCPCollection[]>(`/mcp/collections${q({ scope: "tenant" })}`, {
       headers: { "Rotexai-Tenant-Id": tenantId },
     }),
-  createMCPCollection: (body: { scope: Scope; name: string }) =>
+  createMCPCollection: (body: { scope: Scope; name: string; tenant_id?: string }) =>
     request<MCPCollection>("/mcp/collections", { method: "POST", body: JSON.stringify(body) }),
   updateMCPCollection: (id: string, body: { name?: string }) =>
     request<MCPCollection>(`/mcp/collections/${id}`, { method: "PATCH", body: JSON.stringify(body) }),
@@ -211,6 +215,7 @@ export const adminApi = {
     }),
   createAssistant: (body: {
     scope: Scope;
+    tenant_id?: string;
     name: string;
     model_ids: string[];
     retrieval_collection_ids?: string[];

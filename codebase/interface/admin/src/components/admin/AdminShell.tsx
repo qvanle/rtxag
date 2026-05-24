@@ -1,4 +1,5 @@
 import { Link, Outlet, useRouterState } from "@tanstack/react-router";
+import { useEffect, useRef } from "react";
 import {
   LayoutDashboard,
   Bot,
@@ -21,19 +22,96 @@ const nav = [
 
 export function AdminShell() {
   const pathname = useRouterState({ select: (s) => s.location.pathname });
+  const auroraRefs = useRef<Array<HTMLDivElement | null>>([]);
+
+  useEffect(() => {
+    const speed = 5; // px/s
+    const blobs = auroraRefs.current.filter(Boolean) as HTMLDivElement[];
+    if (!blobs.length) return;
+
+    const randomUnitVector = () => {
+      const angle = Math.random() * Math.PI * 2;
+      return { vx: Math.cos(angle), vy: Math.sin(angle) };
+    };
+
+    const states = blobs.map((el, index) => {
+      const w = window.innerWidth;
+      const h = window.innerHeight;
+      const starts = [{ x: w * 0.2, y: h * 0.16 }, { x: w * 0.82, y: h * 0.42 }, { x: w * 0.52, y: h * 0.82 }];
+      const dir = randomUnitVector();
+      const start = starts[index] ?? { x: w * Math.random(), y: h * Math.random() };
+      return { el, x: start.x, y: start.y, vx: dir.vx, vy: dir.vy };
+    });
+
+    const place = (s: (typeof states)[number]) => {
+      s.el.style.left = `${s.x}px`;
+      s.el.style.top = `${s.y}px`;
+      s.el.style.right = "auto";
+      s.el.style.bottom = "auto";
+      s.el.style.transform = "translate(-50%, -50%)";
+    };
+    states.forEach(place);
+
+    let raf = 0;
+    let last = performance.now();
+
+    const tick = (now: number) => {
+      const dt = (now - last) / 1000;
+      last = now;
+      const w = window.innerWidth;
+      const h = window.innerHeight;
+
+      for (const s of states) {
+        s.x += s.vx * speed * dt;
+        s.y += s.vy * speed * dt;
+
+        if (s.x <= 0) {
+          s.x = 0;
+          s.vx = Math.abs(s.vx);
+        } else if (s.x >= w) {
+          s.x = w;
+          s.vx = -Math.abs(s.vx);
+        }
+
+        if (s.y <= 0) {
+          s.y = 0;
+          s.vy = Math.abs(s.vy);
+        } else if (s.y >= h) {
+          s.y = h;
+          s.vy = -Math.abs(s.vy);
+        }
+
+        place(s);
+      }
+
+      raf = window.requestAnimationFrame(tick);
+    };
+
+    raf = window.requestAnimationFrame(tick);
+    return () => window.cancelAnimationFrame(raf);
+  }, []);
 
   return (
     <div className="relative min-h-screen w-full overflow-hidden">
       {/* Aurora background blobs */}
       <div
+        ref={(el) => {
+          auroraRefs.current[0] = el;
+        }}
         className="aurora-blob"
         style={{ background: "var(--color-aurora-1)", width: 520, height: 520, top: -160, left: -120 }}
       />
       <div
+        ref={(el) => {
+          auroraRefs.current[1] = el;
+        }}
         className="aurora-blob"
         style={{ background: "var(--color-aurora-2)", width: 480, height: 480, top: 240, right: -160 }}
       />
       <div
+        ref={(el) => {
+          auroraRefs.current[2] = el;
+        }}
         className="aurora-blob"
         style={{ background: "var(--color-aurora-3)", width: 420, height: 420, bottom: -180, left: "40%" }}
       />
@@ -145,7 +223,7 @@ export function AdminShell() {
             })}
           </div>
 
-          <main className="flex-1 p-4 md:p-8 overflow-auto">
+          <main className="relative z-0 flex-1 p-4 md:p-8 overflow-auto">
             <Outlet />
           </main>
         </div>

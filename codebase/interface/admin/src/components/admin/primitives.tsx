@@ -1,5 +1,5 @@
 import { cn } from "@/lib/utils";
-import type { ReactNode, HTMLAttributes } from "react";
+import type { ReactNode, HTMLAttributes, ButtonHTMLAttributes } from "react";
 
 export function GlassCard({
   className,
@@ -104,7 +104,7 @@ export function ActionButton({
   children,
   className,
   ...props
-}: HTMLAttributes<HTMLButtonElement> & {
+}: ButtonHTMLAttributes<HTMLButtonElement> & {
   variant?: "primary" | "ghost" | "outline";
 }) {
   return (

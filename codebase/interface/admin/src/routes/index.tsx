@@ -10,6 +10,14 @@ import {
 } from "@/components/admin/primitives";
 import { Activity, DollarSign, AlertTriangle, Gauge } from "lucide-react";
 import { adminApi, useAdminMutation, useAdminQuery } from "@/lib/admin-api";
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog";
 
 export const Route = createFileRoute("/")({
   component: Dashboard,
@@ -45,19 +53,30 @@ function Dashboard() {
   const [tenantExternalId, setTenantExternalId] = useState("");
   const [tenantName, setTenantName] = useState("");
   const globalQuery = useAdminQuery(["dashboard", "global"], adminApi.dashboardGlobal);
-  const tenantsQuery = useAdminQuery(["dashboard", "tenants"], () =>
+  const dashboardTenantsQuery = useAdminQuery(["dashboard", "tenants"], () =>
     adminApi.dashboardTenants(),
   );
+  const tenantsQuery = useAdminQuery(["tenants"], () => adminApi.listTenants());
   const createTenant = useAdminMutation(adminApi.createTenant);
+  const updateTenant = useAdminMutation(
+    ({ idInternal, body }: { idInternal: string; body: { id_external?: string; name?: string } }) =>
+      adminApi.updateTenant(idInternal, body),
+  );
+  const deleteTenant = useAdminMutation((idInternal: string) => adminApi.deleteTenant(idInternal));
 
-  if (globalQuery.isLoading || tenantsQuery.isLoading) {
+  if (
+    globalQuery.isLoading ||
+    dashboardTenantsQuery.isLoading ||
+    tenantsQuery.isLoading
+  ) {
     return <div className="text-sm text-muted-foreground">Loading dashboard...</div>;
   }
 
-  if (globalQuery.error || tenantsQuery.error) {
+  if (globalQuery.error || dashboardTenantsQuery.error || tenantsQuery.error) {
     return (
       <div className="text-sm text-destructive">
         {(globalQuery.error as Error | undefined)?.message ??
+          (dashboardTenantsQuery.error as Error | undefined)?.message ??
           (tenantsQuery.error as Error | undefined)?.message ??
           "Failed to load dashboard"}
       </div>
@@ -65,7 +84,11 @@ function Dashboard() {
   }
 
   const global = globalQuery.data;
+  const dashboardTenants = dashboardTenantsQuery.data ?? [];
   const tenants = tenantsQuery.data ?? [];
+  const dashboardRowsByTenantId = new Map(
+    dashboardTenants.map((row) => [row.tenant_id, row]),
+  );
 
   const toInternalTenantId = (externalId: string) => {
     const slug = externalId
@@ -102,6 +125,24 @@ function Dashboard() {
     );
   };
 
+  const onEditTenant = (tenant: { id_internal: string; id_external: string; name: string }) => {
+    const nextExternal = (window.prompt("External ID", tenant.id_external) ?? tenant.id_external).trim();
+    const nextName = (window.prompt("Name", tenant.name) ?? tenant.name).trim();
+    if (!nextExternal || !nextName) {
+      window.alert("External ID and Name are required");
+      return;
+    }
+    updateTenant.mutate({
+      idInternal: tenant.id_internal,
+      body: { id_external: nextExternal, name: nextName },
+    });
+  };
+
+  const onDeleteTenant = (tenant: { id_internal: string; name: string }) => {
+    if (!window.confirm(`Delete tenant ${tenant.name} (${tenant.id_internal})?`)) return;
+    deleteTenant.mutate(tenant.id_internal);
+  };
+
   return (
     <div className="space-y-6">
       <PageHeader
@@ -110,17 +151,20 @@ function Dashboard() {
         actions={
           <>
             <ScopeSwitcher value={scope} onChange={setScope} />
-            <ActionButton variant="outline" onClick={() => setIsAddingTenant((v) => !v)}>
+            <ActionButton variant="outline" onClick={() => setIsAddingTenant(true)}>
               Add tenant
             </ActionButton>
           </>
         }
       />
 
-      {isAddingTenant && (
-        <GlassCard className="space-y-3">
-          <div className="text-sm font-semibold">Add tenant</div>
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
+      <Dialog open={isAddingTenant} onOpenChange={setIsAddingTenant}>
+        <DialogContent className="glass border-glass-border bg-gradient-to-b from-background to-muted/30 sm:max-w-xl">
+          <DialogHeader>
+            <DialogTitle>Add Tenant</DialogTitle>
+            <DialogDescription>Create a new tenant with external identity mapping.</DialogDescription>
+          </DialogHeader>
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
             <input
               className="h-10 rounded-md border border-glass-border bg-transparent px-3 text-sm outline-none focus:border-primary"
               placeholder="External ID"
@@ -133,15 +177,18 @@ function Dashboard() {
               value={tenantName}
               onChange={(event) => setTenantName(event.target.value)}
             />
-            <ActionButton onClick={onSubmitTenant} disabled={createTenant.isPending}>
-              {createTenant.isPending ? "Creating..." : "Create"}
-            </ActionButton>
           </div>
           {!!createTenant.error && (
             <div className="text-sm text-destructive">{(createTenant.error as Error).message}</div>
           )}
-        </GlassCard>
-      )}
+          <DialogFooter>
+            <ActionButton variant="ghost" onClick={() => setIsAddingTenant(false)}>Cancel</ActionButton>
+            <ActionButton onClick={onSubmitTenant} disabled={createTenant.isPending}>
+              {createTenant.isPending ? "Creating..." : "Create Tenant"}
+            </ActionButton>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
 
       {scope === "global" ? (
         <>
@@ -159,14 +206,29 @@ function Dashboard() {
         </>
       ) : (
         <DataTable
-          columns={["Tenant", "Plan", "Status", "Users", "Token Usage"]}
-          rows={tenants.map((t) => [
-            <span key="n" className="font-medium">{t.tenant_name}</span>,
-            <span key="p" className="text-foreground/80">{t.plan}</span>,
-            <StatusBadge key="s" status={t.status} />,
-            <span key="u" className="tabular-nums">{t.users.toLocaleString()}</span>,
-            <span key="t" className="tabular-nums text-foreground/80">{t.token_usage}</span>,
-          ])}
+          columns={["Tenant", "Plan", "Status", "Users", "Token Usage", "Actions"]}
+          rows={tenants.map((t) => {
+            const row = dashboardRowsByTenantId.get(t.id_internal);
+            return [
+            <span key="n" className="font-medium">{t.name}</span>,
+            <span key="p" className="text-foreground/80">{row?.plan ?? "-"}</span>,
+            <StatusBadge key="s" status={row?.status ?? "active"} />,
+            <span key="u" className="tabular-nums">{(row?.users ?? 0).toLocaleString()}</span>,
+            <span key="t" className="tabular-nums text-foreground/80">{row?.token_usage ?? "-"}</span>,
+            <div key="a" className="flex items-center gap-2">
+              <ActionButton variant="outline" onClick={() => onEditTenant(t)}>
+                Edit
+              </ActionButton>
+              <ActionButton
+                variant="ghost"
+                className="text-destructive hover:text-destructive"
+                onClick={() => onDeleteTenant(t)}
+              >
+                Delete
+              </ActionButton>
+            </div>,
+          ];
+          })}
         />
       )}
     </div>

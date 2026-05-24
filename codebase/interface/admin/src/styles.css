@@ -126,6 +126,17 @@
 }
 
 @layer utilities {
+  @keyframes blob-float-a {
+    0%, 100% { transform: translate(0, 0) scale(1); }
+    50% { transform: translate(20px, -18px) scale(1.08); }
+  }
+
+  @keyframes blob-float-b {
+    0%, 100% { transform: translate(0, 0) scale(1); }
+    50% { transform: translate(-24px, 16px) scale(0.94); }
+  }
+
+
   .glass {
     background: var(--glass);
     backdrop-filter: blur(16px) saturate(140%);
@@ -166,4 +177,15 @@
     opacity: 0.45;
     pointer-events: none;
   }
+
+  .modal-blob-a {
+    background: radial-gradient(circle at 30% 30%, oklch(0.7 0.18 255 / 40%), transparent 70%);
+    animation: blob-float-a 9s ease-in-out infinite;
+  }
+
+  .modal-blob-b {
+    background: radial-gradient(circle at 70% 70%, oklch(0.6 0.2 220 / 35%), transparent 70%);
+    animation: blob-float-b 11s ease-in-out infinite;
+  }
+
 }

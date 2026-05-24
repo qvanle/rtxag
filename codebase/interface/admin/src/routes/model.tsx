@@ -17,6 +17,14 @@ import {
   useAdminMutation,
   useAdminQuery,
 } from "@/lib/admin-api";
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog";
 
 export const Route = createFileRoute("/model")({
   component: ModelPage,
@@ -24,6 +32,9 @@ export const Route = createFileRoute("/model")({
 
 function ModelPage() {
   const [tab, setTab] = useState<"models" | "providers">("models");
+  const [isCreateOpen, setIsCreateOpen] = useState(false);
+  const [modelForm, setModelForm] = useState({ name: "", provider: "", version: "", status: "active" as Model["status"] });
+  const [providerForm, setProviderForm] = useState({ name: "", environment: "production", priority: 1, api_key: "", enabled: true });
 
   const modelsQuery = useAdminQuery(["models"], adminApi.listModels);
   const providersQuery = useAdminQuery(["providers"], adminApi.listProviders);
@@ -48,12 +59,16 @@ function ModelPage() {
   const providers = providersQuery.data ?? [];
 
   const onAddModel = () => {
-    const name = window.prompt("Model name?");
-    if (!name) return;
-    const provider = window.prompt("Provider?") ?? "";
-    const version = window.prompt("Version?") ?? "";
-    const status = (window.prompt("Status (active|draft|deprecated|archived)", "active") ?? "active") as Model["status"];
-    createModel.mutate({ name, provider, version, status });
+    if (!modelForm.name.trim()) return;
+    createModel.mutate(
+      { name: modelForm.name.trim(), provider: modelForm.provider.trim(), version: modelForm.version.trim(), status: modelForm.status },
+      {
+        onSuccess: () => {
+          setIsCreateOpen(false);
+          setModelForm({ name: "", provider: "", version: "", status: "active" });
+        },
+      },
+    );
   };
 
   const onEditModel = (m: Model) => {
@@ -66,13 +81,22 @@ function ModelPage() {
   };
 
   const onAddProvider = () => {
-    const name = window.prompt("Provider name?");
-    if (!name) return;
-    const environment = window.prompt("Environment (production|staging)", "production") ?? "production";
-    const priority = Number(window.prompt("Priority", "1") ?? "1");
-    const api_key = window.prompt("API key", "dev-key") ?? "dev-key";
-    const enabled = (window.prompt("Enabled? (true|false)", "true") ?? "true") === "true";
-    createProvider.mutate({ name, environment, priority, api_key, enabled });
+    if (!providerForm.name.trim()) return;
+    createProvider.mutate(
+      {
+        name: providerForm.name.trim(),
+        environment: providerForm.environment,
+        priority: Number(providerForm.priority) || 1,
+        api_key: providerForm.api_key.trim() || "dev-key",
+        enabled: providerForm.enabled,
+      },
+      {
+        onSuccess: () => {
+          setIsCreateOpen(false);
+          setProviderForm({ name: "", environment: "production", priority: 1, api_key: "", enabled: true });
+        },
+      },
+    );
   };
 
   const onEditProvider = (p: Provider) => {
@@ -91,7 +115,7 @@ function ModelPage() {
         title="Models"
         description="Central registry of foundation models and the providers that serve them."
         actions={
-          <ActionButton onClick={tab === "models" ? onAddModel : onAddProvider}>
+          <ActionButton onClick={() => setIsCreateOpen(true)}>
             <Plus className="h-4 w-4" />
             {tab === "models" ? "Add Model" : "Add Provider"}
           </ActionButton>
@@ -99,6 +123,80 @@ function ModelPage() {
       />
 
       {!!error && <div className="text-sm text-destructive">{error}</div>}
+      <Dialog open={isCreateOpen} onOpenChange={setIsCreateOpen}>
+        <DialogContent className="glass border-glass-border bg-gradient-to-b from-background to-muted/30 sm:max-w-md">
+          <DialogHeader>
+            <DialogTitle>{tab === "models" ? "Create Model" : "Create Provider"}</DialogTitle>
+            <DialogDescription>
+              {tab === "models" ? "Register a new model in the catalog." : "Add a provider endpoint for model routing."}
+            </DialogDescription>
+          </DialogHeader>
+          {tab === "models" ? (
+            <div className="space-y-4">
+              <div className="space-y-1.5">
+                <label className="text-xs font-medium text-foreground/90">Model name <span className="text-destructive">*</span></label>
+                <input
+                  className="h-11 w-full rounded-md border border-glass-border bg-transparent px-3 text-sm outline-none transition focus:border-primary/50 focus:ring-2 focus:ring-primary/30"
+                  placeholder="e.g., GPT-4, Claude 3"
+                  value={modelForm.name}
+                  onChange={(e) => setModelForm((v) => ({ ...v, name: e.target.value }))}
+                />
+              </div>
+              <div className="space-y-1.5">
+                <label className="text-xs font-medium text-foreground/90">Provider <span className="text-destructive">*</span></label>
+                <select
+                  className="h-11 w-full rounded-md border border-glass-border bg-background px-3 text-sm outline-none transition focus:border-primary/50 focus:ring-2 focus:ring-primary/30"
+                  value={modelForm.provider}
+                  onChange={(e) => setModelForm((v) => ({ ...v, provider: e.target.value }))}
+                >
+                  <option value="">Select provider</option>
+                  {providers.map((p) => (
+                    <option key={p.id} value={p.name}>{p.name}</option>
+                  ))}
+                </select>
+              </div>
+              <div className="space-y-1.5">
+                <label className="text-xs font-medium text-foreground/90">Version <span className="text-destructive">*</span></label>
+                <input
+                  className="h-11 w-full rounded-md border border-glass-border bg-transparent px-3 text-sm outline-none transition focus:border-primary/50 focus:ring-2 focus:ring-primary/30"
+                  placeholder="e.g., 2024-11-20"
+                  value={modelForm.version}
+                  onChange={(e) => setModelForm((v) => ({ ...v, version: e.target.value }))}
+                />
+              </div>
+              <div className="space-y-1.5">
+                <label className="text-xs font-medium text-foreground/90">Status <span className="text-destructive">*</span></label>
+                <select
+                  className="h-11 w-full rounded-md border border-glass-border bg-background px-3 text-sm outline-none transition focus:border-primary/50 focus:ring-2 focus:ring-primary/30"
+                  value={modelForm.status}
+                  onChange={(e) => setModelForm((v) => ({ ...v, status: e.target.value as Model["status"] }))}
+                >
+                  <option value="active">active</option>
+                  <option value="draft">draft</option>
+                  <option value="deprecated">deprecated</option>
+                  <option value="archived">archived</option>
+                </select>
+              </div>
+            </div>
+          ) : (
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+              <input className="h-10 rounded-md border border-glass-border bg-transparent px-3 text-sm" placeholder="Provider name" value={providerForm.name} onChange={(e) => setProviderForm((v) => ({ ...v, name: e.target.value }))} />
+              <select className="h-10 rounded-md border border-glass-border bg-background px-3 text-sm" value={providerForm.environment} onChange={(e) => setProviderForm((v) => ({ ...v, environment: e.target.value }))}>
+                <option value="production">production</option>
+                <option value="staging">staging</option>
+              </select>
+              <input className="h-10 rounded-md border border-glass-border bg-transparent px-3 text-sm" placeholder="Priority" type="number" value={providerForm.priority} onChange={(e) => setProviderForm((v) => ({ ...v, priority: Number(e.target.value) }))} />
+              <input className="h-10 rounded-md border border-glass-border bg-transparent px-3 text-sm" placeholder="API key" value={providerForm.api_key} onChange={(e) => setProviderForm((v) => ({ ...v, api_key: e.target.value }))} />
+            </div>
+          )}
+          <DialogFooter className="mt-2 border-t border-glass-border/70 pt-4">
+            <ActionButton variant="ghost" onClick={() => setIsCreateOpen(false)}>Cancel</ActionButton>
+            <ActionButton className="h-11" onClick={tab === "models" ? onAddModel : onAddProvider} disabled={createModel.isPending || createProvider.isPending}>
+              {tab === "models" ? "Create Model" : "Create Provider"}
+            </ActionButton>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
 
       <div className="inline-flex p-1 rounded-lg glass border border-glass-border">
         {(["models", "providers"] as const).map((t) => (
