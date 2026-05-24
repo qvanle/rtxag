@@ -1,0 +1,114 @@
+# ------------------------------
+# OS / Editor
+# ------------------------------
+.DS_Store
+Thumbs.db
+*.swp
+*.swo
+*~
+.idea/
+.vscode/
+
+# ------------------------------
+# Environment / Secrets
+# ------------------------------
+.env
+.env.*
+!.env.example
+*.pem
+*.key
+*.crt
+
+# ------------------------------
+# Node.js / TypeScript / Vite / React
+# ------------------------------
+node_modules/
+.pnpm-store/
+.npm/
+.yarn/
+.yarn/cache/
+.yarn/unplugged/
+.yarn/build-state.yml
+.yarn/install-state.gz
+
+# Build / cache outputs
+/dist/
+/build/
+/.next/
+/.nuxt/
+/.svelte-kit/
+coverage/
+*.tsbuildinfo
+vite.svg
+.eslintcache
+
+# Logs
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+pnpm-debug.log*
+
+# ------------------------------
+# Python
+# ------------------------------
+__pycache__/
+*.py[cod]
+*.pyd
+*.so
+*.egg
+*.egg-info/
+.eggs/
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/
+.pyre/
+.hypothesis/
+.tox/
+.nox/
+.coverage
+.coverage.*
+htmlcov/
+.venv/
+venv/
+env/
+ENV/
+pip-wheel-metadata/
+
+# Python build artifacts
+build/
+dist/
+site/
+
+# ------------------------------
+# Go
+# ------------------------------
+/bin/
+*.test
+*.out
+.coverprofile
+
+# ------------------------------
+# Postgres (local dev data / dumps)
+# ------------------------------
+postgres-data/
+*.sql
+*.dump
+*.bak
+
+# ------------------------------
+# Runtime / temp
+# ------------------------------
+*.pid
+*.pid.lock
+*.seed
+*.log
+tmp/
+temp/
+.cache/
+
+# ------------------------------
+# Docker / compose overrides
+# ------------------------------
+.docker/
+.docker-data/
+docker-compose.override.yml
