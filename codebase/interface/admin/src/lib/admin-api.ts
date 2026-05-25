@@ -65,7 +65,7 @@ export type RetrievalDocument = {
   created_at: string;
 };
 
-export type MCPCollection = {
+export type ToolCollection = {
   id: string;
   scope: Scope;
   tenant_id?: string | null;
@@ -74,7 +74,7 @@ export type MCPCollection = {
   updated_at: string;
 };
 
-export type MCPRecord = {
+export type ToolRecord = {
   id: string;
   collection_id: string;
   key: string;
@@ -90,7 +90,7 @@ export type Assistant = {
   status: Status;
   provider_id: string;
   retrieval_collection_ids: string[];
-  mcp_collection_ids: string[];
+  tools_collection_ids: string[];
   version: string;
   updated_at: string;
 };
@@ -173,27 +173,27 @@ export const adminApi = {
   reindexRetrievalCollection: (id: string) =>
     request<{ ok: boolean }>(`/retrieval/collections/${id}/reindex`, { method: "POST" }),
 
-  listMCPCollections: (scope: Scope) => request<MCPCollection[]>(`/mcp/collections${q({ scope })}`),
-  listMCPCollectionsByTenant: (tenantId: string) =>
-    request<MCPCollection[]>(`/mcp/collections${q({ scope: "tenant" })}`, {
+  listToolCollections: (scope: Scope) => request<ToolCollection[]>(`/tools/collections${q({ scope })}`),
+  listToolCollectionsByTenant: (tenantId: string) =>
+    request<ToolCollection[]>(`/tools/collections${q({ scope: "tenant" })}`, {
       headers: { "Rotexai-Tenant-Id": tenantId },
     }),
-  createMCPCollection: (body: { scope: Scope; name: string; tenant_id?: string }) =>
-    request<MCPCollection>("/mcp/collections", { method: "POST", body: JSON.stringify(body) }),
-  updateMCPCollection: (id: string, body: { name?: string }) =>
-    request<MCPCollection>(`/mcp/collections/${id}`, { method: "PATCH", body: JSON.stringify(body) }),
-  deleteMCPCollection: (id: string) => request<{ ok: boolean }>(`/mcp/collections/${id}`, { method: "DELETE" }),
-  listMCPRecords: (collectionId: string) =>
-    request<MCPRecord[]>(`/mcp/collections/${collectionId}/records`),
-  createMCPRecord: (collectionId: string, body: { key: string; value: string }) =>
-    request<MCPRecord>(`/mcp/collections/${collectionId}/records`, { method: "POST", body: JSON.stringify(body) }),
-  updateMCPRecord: (collectionId: string, recordId: string, body: { key?: string; value?: string }) =>
-    request<MCPRecord>(`/mcp/collections/${collectionId}/records/${recordId}`, {
+  createToolCollection: (body: { scope: Scope; name: string; tenant_id?: string }) =>
+    request<ToolCollection>("/tools/collections", { method: "POST", body: JSON.stringify(body) }),
+  updateToolCollection: (id: string, body: { name?: string }) =>
+    request<ToolCollection>(`/tools/collections/${id}`, { method: "PATCH", body: JSON.stringify(body) }),
+  deleteToolCollection: (id: string) => request<{ ok: boolean }>(`/tools/collections/${id}`, { method: "DELETE" }),
+  listToolRecords: (collectionId: string) =>
+    request<ToolRecord[]>(`/tools/collections/${collectionId}/records`),
+  createToolRecord: (collectionId: string, body: { key: string; value: string }) =>
+    request<ToolRecord>(`/tools/collections/${collectionId}/records`, { method: "POST", body: JSON.stringify(body) }),
+  updateToolRecord: (collectionId: string, recordId: string, body: { key?: string; value?: string }) =>
+    request<ToolRecord>(`/tools/collections/${collectionId}/records/${recordId}`, {
       method: "PATCH",
       body: JSON.stringify(body),
     }),
-  deleteMCPRecord: (collectionId: string, recordId: string) =>
-    request<{ ok: boolean }>(`/mcp/collections/${collectionId}/records/${recordId}`, { method: "DELETE" }),
+  deleteToolRecord: (collectionId: string, recordId: string) =>
+    request<{ ok: boolean }>(`/tools/collections/${collectionId}/records/${recordId}`, { method: "DELETE" }),
 
   listAssistants: (scope: Scope) => request<Assistant[]>(`/assistants${q({ scope })}`),
   listAssistantsByTenant: (tenantId: string) =>
@@ -206,13 +206,13 @@ export const adminApi = {
     name: string;
     provider_id: string;
     retrieval_collection_ids?: string[];
-    mcp_collection_ids?: string[];
+    tools_collection_ids?: string[];
   }) => request<Assistant>("/assistants", { method: "POST", body: JSON.stringify(body) }),
   updateAssistant: (id: string, body: {
     name?: string;
     provider_id?: string;
     retrieval_collection_ids?: string[];
-    mcp_collection_ids?: string[];
+    tools_collection_ids?: string[];
   }) => request<Assistant>(`/assistants/${id}`, { method: "PATCH", body: JSON.stringify(body) }),
   deleteAssistant: (id: string) => request<{ ok: boolean }>(`/assistants/${id}`, { method: "DELETE" }),
   activateAssistant: (id: string) => request<{ ok: boolean }>(`/assistants/${id}/activate`, { method: "POST" }),

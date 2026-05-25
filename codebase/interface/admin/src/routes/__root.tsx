@@ -71,7 +71,7 @@ export const Route = createRootRouteWithContext<{ queryClient: QueryClient }>()(
       { charSet: "utf-8" },
       { name: "viewport", content: "width=device-width, initial-scale=1" },
       { title: "Aurora Admin — Platform Console" },
-      { name: "description", content: "System administration console for AI infrastructure, tenants, models, retrieval and MCP." },
+      { name: "description", content: "System administration console for AI infrastructure, tenants, models, retrieval and tools." },
     ],
     links: [{ rel: "stylesheet", href: appCss }],
   }),

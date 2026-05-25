@@ -88,7 +88,7 @@ type RetrievalDocument struct {
 	CreatedAt    time.Time `json:"created_at"`
 }
 
-type MCPCollection struct {
+type ToolCollection struct {
 	ID          string    `json:"id"`
 	Scope       Scope     `json:"scope"`
 	TenantID    *string   `json:"tenant_id"`
@@ -97,7 +97,7 @@ type MCPCollection struct {
 	UpdatedAt   time.Time `json:"updated_at"`
 }
 
-type MCPRecord struct {
+type ToolRecord struct {
 	ID           string    `json:"id"`
 	CollectionID string    `json:"collection_id"`
 	Key          string    `json:"key"`
@@ -113,7 +113,7 @@ type Assistant struct {
 	Status                 Status    `json:"status"`
 	ProviderID             string    `json:"provider_id"`
 	RetrievalCollectionIDs []string  `json:"retrieval_collection_ids"`
-	MCPCollectionIDs       []string  `json:"mcp_collection_ids"`
+	ToolCollectionIDs      []string  `json:"tools_collection_ids"`
 	Version                string    `json:"version"`
 	UpdatedAt              time.Time `json:"updated_at"`
 }

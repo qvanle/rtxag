@@ -18,21 +18,21 @@ import {
   DialogTitle,
 } from "@/components/ui/dialog";
 
-export const Route = createFileRoute("/mcp")({
-  component: MCPPage,
+export const Route = createFileRoute("/tools")({
+  component: ToolsPage,
 });
 
-function MCPPage() {
+function ToolsPage() {
   const [isCreateOpen, setIsCreateOpen] = useState(false);
   const [createName, setCreateName] = useState("");
   const [createTenantID, setCreateTenantID] = useState("");
-  const tenantsQuery = useAdminQuery(["mcp", "tenants"], adminApi.listTenants);
-  const collectionsQuery = useAdminQuery(["mcp", "collections", "merged"], async () => {
-    const globalCollections = await adminApi.listMCPCollections("global");
+  const tenantsQuery = useAdminQuery(["tools", "tenants"], adminApi.listTenants);
+  const collectionsQuery = useAdminQuery(["tools", "collections", "merged"], async () => {
+    const globalCollections = await adminApi.listToolCollections("global");
     const tenants = await adminApi.listTenants();
     const tenantCollections = await Promise.all(
       tenants.map(async (t) => ({
-        collections: await adminApi.listMCPCollectionsByTenant(t.id_internal),
+        collections: await adminApi.listToolCollectionsByTenant(t.id_internal),
       })),
     );
     return [
@@ -61,25 +61,25 @@ function MCPPage() {
     [collections, selectedId],
   );
 
-  const recordsQuery = useAdminQuery(["mcp", "records", selected?.id ?? "none"], () =>
-    selected ? adminApi.listMCPRecords(selected.id) : Promise.resolve([]),
+  const recordsQuery = useAdminQuery(["tools", "records", selected?.id ?? "none"], () =>
+    selected ? adminApi.listToolRecords(selected.id) : Promise.resolve([]),
   );
   const records = recordsQuery.data ?? [];
 
-  const createCollection = useAdminMutation(adminApi.createMCPCollection);
+  const createCollection = useAdminMutation(adminApi.createToolCollection);
   const updateCollection = useAdminMutation(({ id, body }: { id: string; body: any }) =>
-    adminApi.updateMCPCollection(id, body),
+    adminApi.updateToolCollection(id, body),
   );
-  const deleteCollection = useAdminMutation((id: string) => adminApi.deleteMCPCollection(id));
+  const deleteCollection = useAdminMutation((id: string) => adminApi.deleteToolCollection(id));
 
   const createRecord = useAdminMutation(({ collectionId, body }: { collectionId: string; body: { key: string; value: string } }) =>
-    adminApi.createMCPRecord(collectionId, body),
+    adminApi.createToolRecord(collectionId, body),
   );
   const updateRecord = useAdminMutation(({ collectionId, recordId, body }: { collectionId: string; recordId: string; body: { key?: string; value?: string } }) =>
-    adminApi.updateMCPRecord(collectionId, recordId, body),
+    adminApi.updateToolRecord(collectionId, recordId, body),
   );
   const deleteRecord = useAdminMutation(({ collectionId, recordId }: { collectionId: string; recordId: string }) =>
-    adminApi.deleteMCPRecord(collectionId, recordId),
+    adminApi.deleteToolRecord(collectionId, recordId),
   );
   const onCreateCollection = () => {
     const name = createName.trim();
@@ -102,8 +102,8 @@ function MCPPage() {
   return (
     <div className="space-y-6">
       <PageHeader
-        title="MCP"
-        description="Model Context Protocol collections. Each collection groups tool records exposed to assistants."
+        title="Tools"
+        description="Tool collections. Each collection groups tool records exposed to assistants."
         actions={
           <>
             <ActionButton onClick={() => setIsCreateOpen(true)}>
@@ -115,8 +115,8 @@ function MCPPage() {
       <Dialog open={isCreateOpen} onOpenChange={setIsCreateOpen}>
         <DialogContent className="glass border-glass-border bg-gradient-to-b from-background to-muted/30 sm:max-w-xl">
           <DialogHeader>
-            <DialogTitle>New MCP Collection</DialogTitle>
-            <DialogDescription>Create a collection for MCP records exposed to assistants.</DialogDescription>
+            <DialogTitle>New Tool Collection</DialogTitle>
+            <DialogDescription>Create a collection for tool records exposed to assistants.</DialogDescription>
           </DialogHeader>
           <div className="grid grid-cols-1 gap-3">
             <select className="h-10 rounded-md border border-glass-border bg-background px-3 text-sm" value={createTenantID} onChange={(e) => setCreateTenantID(e.target.value)}>
@@ -176,7 +176,7 @@ function MCPPage() {
               <GlassCard>
                 <div className="flex flex-wrap items-start justify-between gap-3">
                   <div>
-                    <div className="text-xs uppercase tracking-wider text-muted-foreground">MCP Collection</div>
+                    <div className="text-xs uppercase tracking-wider text-muted-foreground">Tool Collection</div>
                     <h2 className="text-xl font-semibold mt-1">{selected.name}</h2>
                     <div className="text-xs text-muted-foreground mt-1">
                       {selected.tenant_id ?? "Global scope"} · Updated {formatDate(selected.updated_at)}
@@ -199,7 +199,7 @@ function MCPPage() {
                     variant="ghost"
                     className="text-xs"
                     onClick={() => {
-                      if (window.confirm(`Delete MCP collection ${selected.name}?`)) deleteCollection.mutate(selected.id);
+                      if (window.confirm(`Delete tool collection ${selected.name}?`)) deleteCollection.mutate(selected.id);
                     }}
                   >
                     Delete

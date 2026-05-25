@@ -39,7 +39,7 @@ function AssistantsPage() {
     name: "",
     provider_id: "",
     retrieval_collection_id: "",
-    mcp_collection_id: "",
+    tools_collection_id: "",
   });
   const tenantsQuery = useAdminQuery(["assistants", "tenants"], adminApi.listTenants);
   const providersQuery = useAdminQuery(["assistants", "providers"], adminApi.listProviders);
@@ -49,10 +49,10 @@ function AssistantsPage() {
     const perTenant = await Promise.all(tenants.map((t) => adminApi.listRetrievalCollectionsByTenant(t.id_internal)));
     return [...globalCols, ...perTenant.flat()];
   });
-  const mcpOptionsQuery = useAdminQuery(["assistants", "mcp-options"], async () => {
-    const globalCols = await adminApi.listMCPCollections("global");
+  const toolsOptionsQuery = useAdminQuery(["assistants", "tools-options"], async () => {
+    const globalCols = await adminApi.listToolCollections("global");
     const tenants = await adminApi.listTenants();
-    const perTenant = await Promise.all(tenants.map((t) => adminApi.listMCPCollectionsByTenant(t.id_internal)));
+    const perTenant = await Promise.all(tenants.map((t) => adminApi.listToolCollectionsByTenant(t.id_internal)));
     return [...globalCols, ...perTenant.flat()];
   });
   const assistantsQuery = useAdminQuery(["assistants", "merged"], async () => {
@@ -86,7 +86,7 @@ function AssistantsPage() {
   const onCreate = () => {
     const provider_id = form.provider_id.trim();
     const retrieval_collection_ids = form.retrieval_collection_id ? [form.retrieval_collection_id] : [];
-    const mcp_collection_ids = form.mcp_collection_id ? [form.mcp_collection_id] : [];
+    const tools_collection_ids = form.tools_collection_id ? [form.tools_collection_id] : [];
     if (!provider_id) {
       window.alert("provider_id is required");
       return;
@@ -103,12 +103,12 @@ function AssistantsPage() {
         name: form.name.trim(),
         provider_id,
         retrieval_collection_ids,
-        mcp_collection_ids,
+        tools_collection_ids,
       },
       {
         onSuccess: () => {
           setIsCreateOpen(false);
-          setForm({ scope: "global", tenant_id: "", name: "", provider_id: "", retrieval_collection_id: "", mcp_collection_id: "" });
+          setForm({ scope: "global", tenant_id: "", name: "", provider_id: "", retrieval_collection_id: "", tools_collection_id: "" });
         },
       },
     );
@@ -125,19 +125,19 @@ function AssistantsPage() {
       .split(",")
       .map((x) => x.trim())
       .filter(Boolean);
-    const mcp_collection_ids = (window.prompt("MCP IDs (comma-separated)", a.mcp_collection_ids.join(",")) ?? a.mcp_collection_ids.join(","))
+    const tools_collection_ids = (window.prompt("Tool IDs (comma-separated)", a.tools_collection_ids.join(",")) ?? a.tools_collection_ids.join(","))
       .split(",")
       .map((x) => x.trim())
       .filter(Boolean);
 
-    updateAssistant.mutate({ id: a.id, body: { name, provider_id, retrieval_collection_ids, mcp_collection_ids } });
+    updateAssistant.mutate({ id: a.id, body: { name, provider_id, retrieval_collection_ids, tools_collection_ids } });
   };
 
   return (
     <div className="space-y-6">
       <PageHeader
         title="Agent"
-        description="Compose agents from Models, Retrieval collections and MCP collections."
+        description="Compose agents from Models, Retrieval collections and Tool collections."
         actions={
           <ActionButton onClick={() => setIsCreateOpen(true)}>
             <Plus className="h-4 w-4" /> New Agent
@@ -148,7 +148,7 @@ function AssistantsPage() {
         <DialogContent className="glass border-glass-border bg-gradient-to-b from-background to-muted/30 sm:max-w-xl">
           <DialogHeader>
             <DialogTitle>New Agent</DialogTitle>
-            <DialogDescription>Compose agent inputs with provider, retrieval and MCP dependencies.</DialogDescription>
+            <DialogDescription>Compose agent inputs with provider, retrieval and tool dependencies.</DialogDescription>
           </DialogHeader>
           <div className="grid grid-cols-1 gap-3">
             <select className="h-10 rounded-md border border-glass-border bg-background px-3 text-sm" value={form.scope} onChange={(e) => setForm((v) => ({ ...v, scope: e.target.value as "global" | "tenant", tenant_id: e.target.value === "tenant" ? v.tenant_id : "" }))}>
@@ -174,10 +174,10 @@ function AssistantsPage() {
                 <option key={r.id} value={r.id}>{r.name} ({r.tenant_id ?? "Global"})</option>
               ))}
             </select>
-            <select className="h-10 rounded-md border border-glass-border bg-background px-3 text-sm" value={form.mcp_collection_id} onChange={(e) => setForm((v) => ({ ...v, mcp_collection_id: e.target.value }))}>
-              <option value="">Select MCP collection (optional)</option>
-              {(mcpOptionsQuery.data ?? []).map((mc) => (
-                <option key={mc.id} value={mc.id}>{mc.name} ({mc.tenant_id ?? "Global"})</option>
+            <select className="h-10 rounded-md border border-glass-border bg-background px-3 text-sm" value={form.tools_collection_id} onChange={(e) => setForm((v) => ({ ...v, tools_collection_id: e.target.value }))}>
+              <option value="">Select tool collection (optional)</option>
+              {(toolsOptionsQuery.data ?? []).map((tc) => (
+                <option key={tc.id} value={tc.id}>{tc.name} ({tc.tenant_id ?? "Global"})</option>
               ))}
             </select>
           </div>
@@ -219,9 +219,9 @@ function AssistantsPage() {
                   <Chip key={r} icon={Database} label={r} />
                 ))}
               </div>
-              {a.mcp_collection_ids.length > 0 && (
+              {a.tools_collection_ids.length > 0 && (
                 <div className="flex flex-wrap gap-1.5">
-                  {a.mcp_collection_ids.map((m) => (
+                  {a.tools_collection_ids.map((m) => (
                     <Chip key={m} icon={Plug} label={m} />
                   ))}
                 </div>
@@ -263,14 +263,14 @@ function AssistantsPage() {
           <div className="text-sm font-semibold">All assistants ({filtered.length})</div>
         </div>
         <DataTable
-          columns={["Tenant", "Name", "Scope", "Provider", "Retrieval", "MCP", "Version", "Status"]}
+          columns={["Tenant", "Name", "Scope", "Provider", "Retrieval", "Tools", "Version", "Status"]}
           rows={filtered.map((a) => [
             <span key="t" className="text-muted-foreground">{a.tenant_id ?? "Global"}</span>,
             <span key="n" className="font-medium">{a.name}</span>,
             <span key="s" className="text-muted-foreground capitalize">{a.scope}</span>,
             <span key="m" className="text-foreground/80">{a.provider_id}</span>,
             <span key="r" className="text-foreground/80">{a.retrieval_collection_ids.join(", ") || "-"}</span>,
-            <span key="mc" className="text-foreground/80">{a.mcp_collection_ids.join(", ") || "-"}</span>,
+            <span key="mc" className="text-foreground/80">{a.tools_collection_ids.join(", ") || "-"}</span>,
             <span key="v" className="tabular-nums">{a.version}</span>,
             <StatusBadge key="st" status={a.status} />,
           ])}

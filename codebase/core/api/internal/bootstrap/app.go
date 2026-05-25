@@ -36,7 +36,7 @@ func NewApp() (*App, error) {
 		Tenant:       inMemory.Tenant,
 		Provider:     inMemory.Provider,
 		Retrieval:    inMemory.Retrieval,
-		MCP:          inMemory.MCP,
+		Tools:        inMemory.Tools,
 		Assistant:    inMemory.Assistant,
 		LLMHubOrigin: cfg.LLMHub.Origin,
 	})

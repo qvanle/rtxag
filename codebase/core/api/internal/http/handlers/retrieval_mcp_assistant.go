@@ -101,20 +101,20 @@ func (h *Handler) ReindexRetrievalCollection(w http.ResponseWriter, r *http.Requ
 	response.JSON(w, 200, map[string]bool{"ok": true}, nil)
 }
 
-func (h *Handler) ListMCPCollections(w http.ResponseWriter, r *http.Request) {
+func (h *Handler) ListToolCollections(w http.ResponseWriter, r *http.Request) {
 	scope, tenantID, ok := scopeAndTenant(w, r)
 	if !ok {
 		return
 	}
-	rows, err := h.deps.MCP.ListCollections(r.Context(), scope, tenantID)
+	rows, err := h.deps.Tools.ListCollections(r.Context(), scope, tenantID)
 	if err != nil {
-		response.Error(w, 500, "list_mcp_collections_failed", err.Error(), nil)
+		response.Error(w, 500, "list_tool_collections_failed", err.Error(), nil)
 		return
 	}
 	response.JSON(w, 200, rows, nil)
 }
-func (h *Handler) CreateMCPCollection(w http.ResponseWriter, r *http.Request) {
-	var req application.CreateMCPCollectionRequest
+func (h *Handler) CreateToolCollection(w http.ResponseWriter, r *http.Request) {
+	var req application.CreateToolCollectionRequest
 	if !decodeJSON(w, r, &req) {
 		return
 	}
@@ -122,75 +122,75 @@ func (h *Handler) CreateMCPCollection(w http.ResponseWriter, r *http.Request) {
 		principal, _ := principalFromRequest(r)
 		req.TenantID = principal.TenantID
 	}
-	row, err := h.deps.MCP.CreateCollection(r.Context(), req)
+	row, err := h.deps.Tools.CreateCollection(r.Context(), req)
 	if err != nil {
-		response.Error(w, 422, "create_mcp_collection_failed", err.Error(), nil)
+		response.Error(w, 422, "create_tool_collection_failed", err.Error(), nil)
 		return
 	}
 	response.JSON(w, 201, row, nil)
 }
-func (h *Handler) GetMCPCollection(w http.ResponseWriter, r *http.Request) {
-	row, err := h.deps.MCP.GetCollection(r.Context(), chi.URLParam(r, "collection_id"))
+func (h *Handler) GetToolCollection(w http.ResponseWriter, r *http.Request) {
+	row, err := h.deps.Tools.GetCollection(r.Context(), chi.URLParam(r, "collection_id"))
 	if err != nil {
-		response.Error(w, 404, "mcp_collection_not_found", err.Error(), nil)
+		response.Error(w, 404, "tool_collection_not_found", err.Error(), nil)
 		return
 	}
 	response.JSON(w, 200, row, nil)
 }
-func (h *Handler) UpdateMCPCollection(w http.ResponseWriter, r *http.Request) {
-	var req application.UpdateMCPCollectionRequest
+func (h *Handler) UpdateToolCollection(w http.ResponseWriter, r *http.Request) {
+	var req application.UpdateToolCollectionRequest
 	if !decodeJSON(w, r, &req) {
 		return
 	}
-	row, err := h.deps.MCP.UpdateCollection(r.Context(), chi.URLParam(r, "collection_id"), req)
+	row, err := h.deps.Tools.UpdateCollection(r.Context(), chi.URLParam(r, "collection_id"), req)
 	if err != nil {
-		response.Error(w, 422, "update_mcp_collection_failed", err.Error(), nil)
+		response.Error(w, 422, "update_tool_collection_failed", err.Error(), nil)
 		return
 	}
 	response.JSON(w, 200, row, nil)
 }
-func (h *Handler) DeleteMCPCollection(w http.ResponseWriter, r *http.Request) {
-	if err := h.deps.MCP.DeleteCollection(r.Context(), chi.URLParam(r, "collection_id")); err != nil {
-		response.Error(w, 409, "delete_mcp_collection_failed", err.Error(), nil)
+func (h *Handler) DeleteToolCollection(w http.ResponseWriter, r *http.Request) {
+	if err := h.deps.Tools.DeleteCollection(r.Context(), chi.URLParam(r, "collection_id")); err != nil {
+		response.Error(w, 409, "delete_tool_collection_failed", err.Error(), nil)
 		return
 	}
 	response.JSON(w, 200, map[string]bool{"ok": true}, nil)
 }
-func (h *Handler) ListMCPRecords(w http.ResponseWriter, r *http.Request) {
-	rows, err := h.deps.MCP.ListRecords(r.Context(), chi.URLParam(r, "collection_id"))
+func (h *Handler) ListToolRecords(w http.ResponseWriter, r *http.Request) {
+	rows, err := h.deps.Tools.ListRecords(r.Context(), chi.URLParam(r, "collection_id"))
 	if err != nil {
-		response.Error(w, 500, "list_mcp_records_failed", err.Error(), nil)
+		response.Error(w, 500, "list_tool_records_failed", err.Error(), nil)
 		return
 	}
 	response.JSON(w, 200, rows, nil)
 }
-func (h *Handler) CreateMCPRecord(w http.ResponseWriter, r *http.Request) {
-	var req application.CreateMCPRecordRequest
+func (h *Handler) CreateToolRecord(w http.ResponseWriter, r *http.Request) {
+	var req application.CreateToolRecordRequest
 	if !decodeJSON(w, r, &req) {
 		return
 	}
-	row, err := h.deps.MCP.CreateRecord(r.Context(), chi.URLParam(r, "collection_id"), req)
+	row, err := h.deps.Tools.CreateRecord(r.Context(), chi.URLParam(r, "collection_id"), req)
 	if err != nil {
-		response.Error(w, 422, "create_mcp_record_failed", err.Error(), nil)
+		response.Error(w, 422, "create_tool_record_failed", err.Error(), nil)
 		return
 	}
 	response.JSON(w, 201, row, nil)
 }
-func (h *Handler) UpdateMCPRecord(w http.ResponseWriter, r *http.Request) {
-	var req application.UpdateMCPRecordRequest
+func (h *Handler) UpdateToolRecord(w http.ResponseWriter, r *http.Request) {
+	var req application.UpdateToolRecordRequest
 	if !decodeJSON(w, r, &req) {
 		return
 	}
-	row, err := h.deps.MCP.UpdateRecord(r.Context(), chi.URLParam(r, "collection_id"), chi.URLParam(r, "record_id"), req)
+	row, err := h.deps.Tools.UpdateRecord(r.Context(), chi.URLParam(r, "collection_id"), chi.URLParam(r, "record_id"), req)
 	if err != nil {
-		response.Error(w, 422, "update_mcp_record_failed", err.Error(), nil)
+		response.Error(w, 422, "update_tool_record_failed", err.Error(), nil)
 		return
 	}
 	response.JSON(w, 200, row, nil)
 }
-func (h *Handler) DeleteMCPRecord(w http.ResponseWriter, r *http.Request) {
-	if err := h.deps.MCP.DeleteRecord(r.Context(), chi.URLParam(r, "collection_id"), chi.URLParam(r, "record_id")); err != nil {
-		response.Error(w, 409, "delete_mcp_record_failed", err.Error(), nil)
+func (h *Handler) DeleteToolRecord(w http.ResponseWriter, r *http.Request) {
+	if err := h.deps.Tools.DeleteRecord(r.Context(), chi.URLParam(r, "collection_id"), chi.URLParam(r, "record_id")); err != nil {
+		response.Error(w, 409, "delete_tool_record_failed", err.Error(), nil)
 		return
 	}
 	response.JSON(w, 200, map[string]bool{"ok": true}, nil)

@@ -27,17 +27,17 @@ export type Assistant = {
   tenant?: string;
   models: string[];
   retrieval: string[];
-  mcp: string[];
+  tools: string[];
   status: Status;
   version: string;
 };
 
 export const assistants: Assistant[] = [
-  { id: "a1", name: "Support Copilot", scope: "global", models: ["gpt-4o", "claude-3.5"], retrieval: ["product-docs"], mcp: ["zendesk-tools"], status: "active", version: "v2.4" },
-  { id: "a2", name: "Sales Researcher", scope: "global", models: ["gpt-4o"], retrieval: ["market-intel"], mcp: ["salesforce"], status: "active", version: "v1.8" },
-  { id: "a3", name: "Internal Wiki Bot", scope: "tenant", tenant: "Acme Corp", models: ["claude-3.5"], retrieval: ["wiki-acme"], mcp: [], status: "draft", version: "v0.3" },
-  { id: "a4", name: "Legal Review", scope: "tenant", tenant: "Umbrella", models: ["gpt-4o"], retrieval: ["legal-corpus"], mcp: ["docusign"], status: "active", version: "v3.1" },
-  { id: "a5", name: "Onboarding Guide", scope: "global", models: ["llama-3.1"], retrieval: ["product-docs"], mcp: [], status: "deprecated", version: "v1.0" },
+  { id: "a1", name: "Support Copilot", scope: "global", models: ["gpt-4o", "claude-3.5"], retrieval: ["product-docs"], tools: ["zendesk-tools"], status: "active", version: "v2.4" },
+  { id: "a2", name: "Sales Researcher", scope: "global", models: ["gpt-4o"], retrieval: ["market-intel"], tools: ["salesforce"], status: "active", version: "v1.8" },
+  { id: "a3", name: "Internal Wiki Bot", scope: "tenant", tenant: "Acme Corp", models: ["claude-3.5"], retrieval: ["wiki-acme"], tools: [], status: "draft", version: "v0.3" },
+  { id: "a4", name: "Legal Review", scope: "tenant", tenant: "Umbrella", models: ["gpt-4o"], retrieval: ["legal-corpus"], tools: ["docusign"], status: "active", version: "v3.1" },
+  { id: "a5", name: "Onboarding Guide", scope: "global", models: ["llama-3.1"], retrieval: ["product-docs"], tools: [], status: "deprecated", version: "v1.0" },
 ];
 
 export type Model = {
@@ -111,7 +111,7 @@ export const documents: Document[] = [
   { id: "d6", title: "Failed import.zip", collection: "onboarding-kit", size: "—", status: "failed", updated: "2026-05-10" },
 ];
 
-export type MCPCollection = {
+export type ToolCollection = {
   id: string;
   name: string;
   scope: Scope;
@@ -121,14 +121,14 @@ export type MCPCollection = {
   updated: string;
 };
 
-export const mcpCollections: MCPCollection[] = [
+export const toolCollections: ToolCollection[] = [
   { id: "mc1", name: "zendesk-tools", scope: "global", records: 14, status: "active", updated: "2026-05-20" },
   { id: "mc2", name: "salesforce", scope: "global", records: 22, status: "active", updated: "2026-05-18" },
   { id: "mc3", name: "docusign", scope: "tenant", tenant: "Umbrella", records: 8, status: "active", updated: "2026-05-14" },
   { id: "mc4", name: "internal-jira", scope: "tenant", tenant: "Acme Corp", records: 31, status: "draft", updated: "2026-05-22" },
 ];
 
-export type MCPRecord = {
+export type ToolRecord = {
   id: string;
   name: string;
   collection: string;
@@ -137,7 +137,7 @@ export type MCPRecord = {
   status: Status;
 };
 
-export const mcpRecords: MCPRecord[] = [
+export const toolRecords: ToolRecord[] = [
   { id: "mr1", name: "create_ticket", collection: "zendesk-tools", endpoint: "/api/v2/tickets", method: "POST", status: "active" },
   { id: "mr2", name: "search_tickets", collection: "zendesk-tools", endpoint: "/api/v2/search", method: "GET", status: "active" },
   { id: "mr3", name: "create_opportunity", collection: "salesforce", endpoint: "/services/data/opps", method: "POST", status: "active" },

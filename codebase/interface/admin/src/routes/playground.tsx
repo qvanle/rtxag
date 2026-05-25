@@ -364,7 +364,7 @@ function PlaygroundPage() {
                       </span>
                       <span className="inline-flex items-center gap-1 rounded-md border border-glass-border bg-muted/40 px-2 py-0.5 text-[11px] text-foreground/80">
                         <Plug className="h-3 w-3" />
-                        {selectedAssistant.mcp_collection_ids.length} mcp
+                        {selectedAssistant.tools_collection_ids.length} tools
                       </span>
                     </div>
                   </div>

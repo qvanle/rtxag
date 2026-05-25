@@ -36,10 +36,10 @@ type AssistantRetrievalCollection struct {
 
 func (AssistantRetrievalCollection) TableName() string { return "assistant_retrieval_collections" }
 
-type AssistantMCPCollection struct {
+type AssistantToolCollection struct {
 	AssistantID  uuid.UUID `gorm:"type:uuid;primaryKey"`
 	CollectionID uuid.UUID `gorm:"type:uuid;primaryKey"`
 	CreatedAt    time.Time `gorm:"not null;default:now()"`
 }
 
-func (AssistantMCPCollection) TableName() string { return "assistant_mcp_collections" }
+func (AssistantToolCollection) TableName() string { return "assistant_tools_collections" }

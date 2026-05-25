@@ -9,16 +9,26 @@
 // Additionally, you should also exclude this file from your linter and/or formatter to prevent it from being checked or modified.
 
 import { Route as rootRouteImport } from './routes/__root'
+import { Route as ToolsRouteImport } from './routes/tools'
 import { Route as RetrievalRouteImport } from './routes/retrieval'
-import { Route as ModelRouteImport } from './routes/model'
-import { Route as McpRouteImport } from './routes/mcp'
-import { Route as AssistantRouteImport } from './routes/assistant'
 import { Route as PlaygroundRouteImport } from './routes/playground'
+import { Route as ModelRouteImport } from './routes/model'
+import { Route as AssistantRouteImport } from './routes/assistant'
 import { Route as IndexRouteImport } from './routes/index'
 
+const ToolsRoute = ToolsRouteImport.update({
+  id: '/tools',
+  path: '/tools',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const RetrievalRoute = RetrievalRouteImport.update({
   id: '/retrieval',
   path: '/retrieval',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const PlaygroundRoute = PlaygroundRouteImport.update({
+  id: '/playground',
+  path: '/playground',
   getParentRoute: () => rootRouteImport,
 } as any)
 const ModelRoute = ModelRouteImport.update({
@@ -26,19 +36,9 @@ const ModelRoute = ModelRouteImport.update({
   path: '/model',
   getParentRoute: () => rootRouteImport,
 } as any)
-const McpRoute = McpRouteImport.update({
-  id: '/mcp',
-  path: '/mcp',
-  getParentRoute: () => rootRouteImport,
-} as any)
 const AssistantRoute = AssistantRouteImport.update({
   id: '/assistant',
   path: '/assistant',
-  getParentRoute: () => rootRouteImport,
-} as any)
-const PlaygroundRoute = PlaygroundRouteImport.update({
-  id: '/playground',
-  path: '/playground',
   getParentRoute: () => rootRouteImport,
 } as any)
 const IndexRoute = IndexRouteImport.update({
@@ -50,59 +50,72 @@ const IndexRoute = IndexRouteImport.update({
 export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
   '/assistant': typeof AssistantRoute
-  '/mcp': typeof McpRoute
   '/model': typeof ModelRoute
   '/playground': typeof PlaygroundRoute
   '/retrieval': typeof RetrievalRoute
+  '/tools': typeof ToolsRoute
 }
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
   '/assistant': typeof AssistantRoute
-  '/mcp': typeof McpRoute
   '/model': typeof ModelRoute
   '/playground': typeof PlaygroundRoute
   '/retrieval': typeof RetrievalRoute
+  '/tools': typeof ToolsRoute
 }
 export interface FileRoutesById {
   __root__: typeof rootRouteImport
   '/': typeof IndexRoute
   '/assistant': typeof AssistantRoute
-  '/mcp': typeof McpRoute
   '/model': typeof ModelRoute
   '/playground': typeof PlaygroundRoute
   '/retrieval': typeof RetrievalRoute
+  '/tools': typeof ToolsRoute
 }
 export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
-  fullPaths: '/' | '/assistant' | '/mcp' | '/model' | '/playground' | '/retrieval'
+  fullPaths:
+    | '/'
+    | '/assistant'
+    | '/model'
+    | '/playground'
+    | '/retrieval'
+    | '/tools'
   fileRoutesByTo: FileRoutesByTo
-  to: '/' | '/assistant' | '/mcp' | '/model' | '/playground' | '/retrieval'
-  id: '__root__' | '/' | '/assistant' | '/mcp' | '/model' | '/playground' | '/retrieval'
+  to: '/' | '/assistant' | '/model' | '/playground' | '/retrieval' | '/tools'
+  id:
+    | '__root__'
+    | '/'
+    | '/assistant'
+    | '/model'
+    | '/playground'
+    | '/retrieval'
+    | '/tools'
   fileRoutesById: FileRoutesById
 }
 export interface RootRouteChildren {
   IndexRoute: typeof IndexRoute
   AssistantRoute: typeof AssistantRoute
-  McpRoute: typeof McpRoute
   ModelRoute: typeof ModelRoute
   PlaygroundRoute: typeof PlaygroundRoute
   RetrievalRoute: typeof RetrievalRoute
+  ToolsRoute: typeof ToolsRoute
 }
 
 declare module '@tanstack/react-router' {
   interface FileRoutesByPath {
+    '/tools': {
+      id: '/tools'
+      path: '/tools'
+      fullPath: '/tools'
+      preLoaderRoute: typeof ToolsRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/retrieval': {
       id: '/retrieval'
       path: '/retrieval'
       fullPath: '/retrieval'
       preLoaderRoute: typeof RetrievalRouteImport
-      parentRoute: typeof rootRouteImport
-    }
-    '/model': {
-      id: '/model'
-      path: '/model'
-      fullPath: '/model'
-      preLoaderRoute: typeof ModelRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/playground': {
@@ -112,11 +125,11 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof PlaygroundRouteImport
       parentRoute: typeof rootRouteImport
     }
-    '/mcp': {
-      id: '/mcp'
-      path: '/mcp'
-      fullPath: '/mcp'
-      preLoaderRoute: typeof McpRouteImport
+    '/model': {
+      id: '/model'
+      path: '/model'
+      fullPath: '/model'
+      preLoaderRoute: typeof ModelRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/assistant': {
@@ -139,10 +152,10 @@ declare module '@tanstack/react-router' {
 const rootRouteChildren: RootRouteChildren = {
   IndexRoute: IndexRoute,
   AssistantRoute: AssistantRoute,
-  McpRoute: McpRoute,
   ModelRoute: ModelRoute,
   PlaygroundRoute: PlaygroundRoute,
   RetrievalRoute: RetrievalRoute,
+  ToolsRoute: ToolsRoute,
 }
 export const routeTree = rootRouteImport
   ._addFileChildren(rootRouteChildren)

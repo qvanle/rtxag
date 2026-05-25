@@ -82,7 +82,7 @@ CREATE TABLE IF NOT EXISTS retrieval_documents (
   UNIQUE (collection_id, filename)
 );
 
-CREATE TABLE IF NOT EXISTS mcp_collections (
+CREATE TABLE IF NOT EXISTS tools_collections (
   id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
   scope scope_type NOT NULL,
   tenant_id TEXT REFERENCES tenants(id_internal),
@@ -96,9 +96,9 @@ CREATE TABLE IF NOT EXISTS mcp_collections (
   CHECK ((scope = 'global' AND tenant_id IS NULL) OR (scope = 'tenant' AND tenant_id IS NOT NULL))
 );
 
-CREATE TABLE IF NOT EXISTS mcp_records (
+CREATE TABLE IF NOT EXISTS tools_records (
   id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-  collection_id UUID NOT NULL REFERENCES mcp_collections(id) ON DELETE CASCADE,
+  collection_id UUID NOT NULL REFERENCES tools_collections(id) ON DELETE CASCADE,
   record_key TEXT NOT NULL,
   record_value JSONB NOT NULL,
   created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
@@ -128,9 +128,9 @@ CREATE TABLE IF NOT EXISTS assistant_retrieval_collections (
   PRIMARY KEY (assistant_id, collection_id)
 );
 
-CREATE TABLE IF NOT EXISTS assistant_mcp_collections (
+CREATE TABLE IF NOT EXISTS assistant_tools_collections (
   assistant_id UUID NOT NULL REFERENCES assistants(id) ON DELETE CASCADE,
-  collection_id UUID NOT NULL REFERENCES mcp_collections(id),
+  collection_id UUID NOT NULL REFERENCES tools_collections(id),
   created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
   PRIMARY KEY (assistant_id, collection_id)
 );
@@ -167,9 +167,9 @@ CREATE INDEX IF NOT EXISTS ix_providers_enabled ON providers(enabled);
 CREATE INDEX IF NOT EXISTS ix_retrieval_scope_tenant ON retrieval_collections(scope, tenant_id);
 CREATE INDEX IF NOT EXISTS ix_retrieval_documents_collection ON retrieval_documents(collection_id);
 CREATE UNIQUE INDEX IF NOT EXISTS ux_retrieval_collections_scope_name ON retrieval_collections(scope, COALESCE(tenant_id, ''), name);
-CREATE INDEX IF NOT EXISTS ix_mcp_scope_tenant ON mcp_collections(scope, tenant_id);
-CREATE INDEX IF NOT EXISTS ix_mcp_records_collection ON mcp_records(collection_id);
-CREATE UNIQUE INDEX IF NOT EXISTS ux_mcp_collections_scope_name ON mcp_collections(scope, COALESCE(tenant_id, ''), name);
+CREATE INDEX IF NOT EXISTS ix_tools_scope_tenant ON tools_collections(scope, tenant_id);
+CREATE INDEX IF NOT EXISTS ix_tools_records_collection ON tools_records(collection_id);
+CREATE UNIQUE INDEX IF NOT EXISTS ux_tools_collections_scope_name ON tools_collections(scope, COALESCE(tenant_id, ''), name);
 CREATE INDEX IF NOT EXISTS ix_assistants_scope_tenant ON assistants(scope, tenant_id);
 CREATE UNIQUE INDEX IF NOT EXISTS ux_assistants_scope_name_version ON assistants(scope, COALESCE(tenant_id, ''), name, version);
 CREATE INDEX IF NOT EXISTS ix_audit_events_created_at ON audit_events(created_at DESC);

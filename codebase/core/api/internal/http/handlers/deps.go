@@ -7,7 +7,7 @@ type Deps struct {
 	Tenant       application.TenantService
 	Provider     application.ProviderService
 	Retrieval    application.RetrievalService
-	MCP          application.MCPService
+	Tools        application.ToolsService
 	Assistant    application.AssistantService
 	LLMHubOrigin string
 }

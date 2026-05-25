@@ -17,7 +17,7 @@ type InMemoryServices struct {
 	Tenant    TenantService
 	Provider  ProviderService
 	Retrieval RetrievalService
-	MCP       MCPService
+	Tools     ToolsService
 	Assistant AssistantService
 }
 
@@ -28,7 +28,7 @@ func NewInMemoryServices() *InMemoryServices {
 		Tenant:    &tenantMemoryService{state: state},
 		Provider:  &providerMemoryService{state: state},
 		Retrieval: &retrievalMemoryService{state: state},
-		MCP:       &mcpMemoryService{state: state},
+		Tools:     &toolMemoryService{state: state},
 		Assistant: &assistantMemoryService{state: state},
 	}
 }
@@ -39,8 +39,8 @@ type memoryState struct {
 	tenants     map[string]domain.Tenant
 	retrievals  map[string]domain.RetrievalCollection
 	documents   map[string]domain.RetrievalDocument
-	mcpCols     map[string]domain.MCPCollection
-	mcpRecords  map[string]domain.MCPRecord
+	toolCols    map[string]domain.ToolCollection
+	toolRecords map[string]domain.ToolRecord
 	assistants  map[string]domain.Assistant
 	initialized bool
 }
@@ -53,8 +53,8 @@ func (s *memoryState) init() {
 	s.tenants = map[string]domain.Tenant{}
 	s.retrievals = map[string]domain.RetrievalCollection{}
 	s.documents = map[string]domain.RetrievalDocument{}
-	s.mcpCols = map[string]domain.MCPCollection{}
-	s.mcpRecords = map[string]domain.MCPRecord{}
+	s.toolCols = map[string]domain.ToolCollection{}
+	s.toolRecords = map[string]domain.ToolRecord{}
 	s.assistants = map[string]domain.Assistant{}
 	s.initialized = true
 }
@@ -371,13 +371,13 @@ func (s *retrievalMemoryService) ReindexCollection(_ context.Context, collection
 	return nil
 }
 
-type mcpMemoryService struct{ state *memoryState }
+type toolMemoryService struct{ state *memoryState }
 
-func (s *mcpMemoryService) ListCollections(_ context.Context, scope domain.Scope, tenantID string) ([]domain.MCPCollection, error) {
+func (s *toolMemoryService) ListCollections(_ context.Context, scope domain.Scope, tenantID string) ([]domain.ToolCollection, error) {
 	s.state.mu.RLock()
 	defer s.state.mu.RUnlock()
-	out := []domain.MCPCollection{}
-	for _, c := range s.state.mcpCols {
+	out := []domain.ToolCollection{}
+	for _, c := range s.state.toolCols {
 		if c.Scope != scope {
 			continue
 		}
@@ -388,71 +388,71 @@ func (s *mcpMemoryService) ListCollections(_ context.Context, scope domain.Scope
 	}
 	return out, nil
 }
-func (s *mcpMemoryService) CreateCollection(_ context.Context, req CreateMCPCollectionRequest) (domain.MCPCollection, error) {
+func (s *toolMemoryService) CreateCollection(_ context.Context, req CreateToolCollectionRequest) (domain.ToolCollection, error) {
 	s.state.mu.Lock()
 	defer s.state.mu.Unlock()
 	s.state.init()
-	c := domain.MCPCollection{ID: uuid.NewString(), Scope: req.Scope, Name: req.Name, UpdatedAt: time.Now().UTC()}
+	c := domain.ToolCollection{ID: uuid.NewString(), Scope: req.Scope, Name: req.Name, UpdatedAt: time.Now().UTC()}
 	if req.Scope == domain.ScopeTenant {
 		c.TenantID = &req.TenantID
 	}
-	s.state.mcpCols[c.ID] = c
+	s.state.toolCols[c.ID] = c
 	return c, nil
 }
-func (s *mcpMemoryService) GetCollection(_ context.Context, collectionID string) (domain.MCPCollection, error) {
+func (s *toolMemoryService) GetCollection(_ context.Context, collectionID string) (domain.ToolCollection, error) {
 	s.state.mu.RLock()
 	defer s.state.mu.RUnlock()
-	c, ok := s.state.mcpCols[collectionID]
+	c, ok := s.state.toolCols[collectionID]
 	if !ok {
-		return domain.MCPCollection{}, fmt.Errorf("collection not found")
+		return domain.ToolCollection{}, fmt.Errorf("collection not found")
 	}
 	return c, nil
 }
-func (s *mcpMemoryService) UpdateCollection(_ context.Context, collectionID string, req UpdateMCPCollectionRequest) (domain.MCPCollection, error) {
+func (s *toolMemoryService) UpdateCollection(_ context.Context, collectionID string, req UpdateToolCollectionRequest) (domain.ToolCollection, error) {
 	s.state.mu.Lock()
 	defer s.state.mu.Unlock()
-	c, ok := s.state.mcpCols[collectionID]
+	c, ok := s.state.toolCols[collectionID]
 	if !ok {
-		return domain.MCPCollection{}, fmt.Errorf("collection not found")
+		return domain.ToolCollection{}, fmt.Errorf("collection not found")
 	}
 	if req.Name != nil {
 		c.Name = *req.Name
 	}
 	c.UpdatedAt = time.Now().UTC()
-	s.state.mcpCols[collectionID] = c
+	s.state.toolCols[collectionID] = c
 	return c, nil
 }
-func (s *mcpMemoryService) DeleteCollection(_ context.Context, collectionID string) error {
+func (s *toolMemoryService) DeleteCollection(_ context.Context, collectionID string) error {
 	s.state.mu.Lock()
 	defer s.state.mu.Unlock()
-	delete(s.state.mcpCols, collectionID)
+	delete(s.state.toolCols, collectionID)
 	return nil
 }
-func (s *mcpMemoryService) ListRecords(_ context.Context, collectionID string) ([]domain.MCPRecord, error) {
+func (s *toolMemoryService) ListRecords(_ context.Context, collectionID string) ([]domain.ToolRecord, error) {
 	s.state.mu.RLock()
 	defer s.state.mu.RUnlock()
-	out := []domain.MCPRecord{}
-	for _, v := range s.state.mcpRecords {
+	out := []domain.ToolRecord{}
+	for _, v := range s.state.toolRecords {
 		if v.CollectionID == collectionID {
 			out = append(out, v)
 		}
 	}
 	return out, nil
 }
-func (s *mcpMemoryService) CreateRecord(_ context.Context, collectionID string, req CreateMCPRecordRequest) (domain.MCPRecord, error) {
+func (s *toolMemoryService) CreateRecord(_ context.Context, collectionID string, req CreateToolRecordRequest) (domain.ToolRecord, error) {
 	s.state.mu.Lock()
 	defer s.state.mu.Unlock()
 	s.state.init()
-	r := domain.MCPRecord{ID: uuid.NewString(), CollectionID: collectionID, Key: req.Key, Value: req.Value, UpdatedAt: time.Now().UTC()}
-	s.state.mcpRecords[r.ID] = r
+	r := domain.ToolRecord{ID: uuid.NewString(), CollectionID: collectionID, Key: req.Key, Value: req.Value, UpdatedAt: time.Now().UTC()}
+	s.state.toolRecords[r.ID] = r
 	return r, nil
 }
-func (s *mcpMemoryService) UpdateRecord(_ context.Context, _, recordID string, req UpdateMCPRecordRequest) (domain.MCPRecord, error) {
+func (s *toolMemoryService) UpdateRecord(_ context.Context, _, recordID string, req UpdateToolRecordRequest) (domain.ToolRecord, error) {
 	s.state.mu.Lock()
 	defer s.state.mu.Unlock()
-	r, ok := s.state.mcpRecords[recordID]
+	r, ok := s.state.toolRecords[recordID]
 	if !ok {
-		return domain.MCPRecord{}, fmt.Errorf("record not found")
+		return domain.ToolRecord{}, fmt.Errorf("record not found")
 	}
 	if req.Key != nil {
 		r.Key = *req.Key
@@ -461,13 +461,13 @@ func (s *mcpMemoryService) UpdateRecord(_ context.Context, _, recordID string, r
 		r.Value = *req.Value
 	}
 	r.UpdatedAt = time.Now().UTC()
-	s.state.mcpRecords[recordID] = r
+	s.state.toolRecords[recordID] = r
 	return r, nil
 }
-func (s *mcpMemoryService) DeleteRecord(_ context.Context, _, recordID string) error {
+func (s *toolMemoryService) DeleteRecord(_ context.Context, _, recordID string) error {
 	s.state.mu.Lock()
 	defer s.state.mu.Unlock()
-	delete(s.state.mcpRecords, recordID)
+	delete(s.state.toolRecords, recordID)
 	return nil
 }
 
@@ -495,7 +495,7 @@ func (s *assistantMemoryService) Create(_ context.Context, req CreateAssistantRe
 	if strings.TrimSpace(req.ProviderID) == "" {
 		return domain.Assistant{}, fmt.Errorf("provider_id required")
 	}
-	a := domain.Assistant{ID: uuid.NewString(), Scope: req.Scope, Name: strings.TrimSpace(req.Name), Status: domain.StatusDraft, ProviderID: req.ProviderID, RetrievalCollectionIDs: req.RetrievalCollectionIDs, MCPCollectionIDs: req.MCPCollectionIDs, Version: "v1", UpdatedAt: time.Now().UTC()}
+	a := domain.Assistant{ID: uuid.NewString(), Scope: req.Scope, Name: strings.TrimSpace(req.Name), Status: domain.StatusDraft, ProviderID: req.ProviderID, RetrievalCollectionIDs: req.RetrievalCollectionIDs, ToolCollectionIDs: req.ToolCollectionIDs, Version: "v1", UpdatedAt: time.Now().UTC()}
 	if req.Scope == domain.ScopeTenant {
 		a.TenantID = &req.TenantID
 	}
@@ -527,8 +527,8 @@ func (s *assistantMemoryService) Update(_ context.Context, assistantID string, r
 	if req.RetrievalCollectionIDs != nil {
 		a.RetrievalCollectionIDs = *req.RetrievalCollectionIDs
 	}
-	if req.MCPCollectionIDs != nil {
-		a.MCPCollectionIDs = *req.MCPCollectionIDs
+	if req.ToolCollectionIDs != nil {
+		a.ToolCollectionIDs = *req.ToolCollectionIDs
 	}
 	a.UpdatedAt = time.Now().UTC()
 	s.state.assistants[assistantID] = a

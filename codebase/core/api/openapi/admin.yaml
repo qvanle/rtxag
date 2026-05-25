@@ -82,40 +82,40 @@ paths:
       summary: Reindex retrieval collection
       parameters: [{ name: collection_id, in: path, required: true, schema: { type: string } }]
       responses: { '200': { description: OK } }
-  /mcp/collections:
-    get: { summary: List MCP collections, responses: { '200': { description: OK } } }
-    post: { summary: Create MCP collection, responses: { '201': { description: Created } } }
-  /mcp/collections/{collection_id}:
+  /tools/collections:
+    get: { summary: List tool collections, responses: { '200': { description: OK } } }
+    post: { summary: Create tool collection, responses: { '201': { description: Created } } }
+  /tools/collections/{collection_id}:
     get:
-      summary: Get MCP collection
+      summary: Get tool collection
       parameters: [{ name: collection_id, in: path, required: true, schema: { type: string } }]
       responses: { '200': { description: OK } }
     patch:
-      summary: Update MCP collection
+      summary: Update tool collection
       parameters: [{ name: collection_id, in: path, required: true, schema: { type: string } }]
       responses: { '200': { description: OK } }
     delete:
-      summary: Delete MCP collection
+      summary: Delete tool collection
       parameters: [{ name: collection_id, in: path, required: true, schema: { type: string } }]
       responses: { '200': { description: OK } }
-  /mcp/collections/{collection_id}/records:
+  /tools/collections/{collection_id}/records:
     get:
-      summary: List MCP records
+      summary: List tool records
       parameters: [{ name: collection_id, in: path, required: true, schema: { type: string } }]
       responses: { '200': { description: OK } }
     post:
-      summary: Create MCP record
+      summary: Create tool record
       parameters: [{ name: collection_id, in: path, required: true, schema: { type: string } }]
       responses: { '201': { description: Created } }
-  /mcp/collections/{collection_id}/records/{record_id}:
+  /tools/collections/{collection_id}/records/{record_id}:
     patch:
-      summary: Update MCP record
+      summary: Update tool record
       parameters:
         - { name: collection_id, in: path, required: true, schema: { type: string } }
         - { name: record_id, in: path, required: true, schema: { type: string } }
       responses: { '200': { description: OK } }
     delete:
-      summary: Delete MCP record
+      summary: Delete tool record
       parameters:
         - { name: collection_id, in: path, required: true, schema: { type: string } }
         - { name: record_id, in: path, required: true, schema: { type: string } }

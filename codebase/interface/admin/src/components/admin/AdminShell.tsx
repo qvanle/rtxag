@@ -18,7 +18,7 @@ const nav = [
   { to: "/assistant", label: "Agent", icon: Bot },
   { to: "/model", label: "Model", icon: Cpu },
   { to: "/retrieval", label: "Retrieval", icon: Database },
-  { to: "/mcp", label: "MCP", icon: Plug },
+  { to: "/tools", label: "Tools", icon: Plug },
 ];
 
 export function AdminShell() {

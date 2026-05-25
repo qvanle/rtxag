@@ -43,15 +43,15 @@ type RetrievalService interface {
 	ReindexCollection(ctx context.Context, collectionID string) error
 }
 
-type MCPService interface {
-	ListCollections(ctx context.Context, scope domain.Scope, tenantID string) ([]domain.MCPCollection, error)
-	CreateCollection(ctx context.Context, req CreateMCPCollectionRequest) (domain.MCPCollection, error)
-	GetCollection(ctx context.Context, collectionID string) (domain.MCPCollection, error)
-	UpdateCollection(ctx context.Context, collectionID string, req UpdateMCPCollectionRequest) (domain.MCPCollection, error)
+type ToolsService interface {
+	ListCollections(ctx context.Context, scope domain.Scope, tenantID string) ([]domain.ToolCollection, error)
+	CreateCollection(ctx context.Context, req CreateToolCollectionRequest) (domain.ToolCollection, error)
+	GetCollection(ctx context.Context, collectionID string) (domain.ToolCollection, error)
+	UpdateCollection(ctx context.Context, collectionID string, req UpdateToolCollectionRequest) (domain.ToolCollection, error)
 	DeleteCollection(ctx context.Context, collectionID string) error
-	ListRecords(ctx context.Context, collectionID string) ([]domain.MCPRecord, error)
-	CreateRecord(ctx context.Context, collectionID string, req CreateMCPRecordRequest) (domain.MCPRecord, error)
-	UpdateRecord(ctx context.Context, collectionID, recordID string, req UpdateMCPRecordRequest) (domain.MCPRecord, error)
+	ListRecords(ctx context.Context, collectionID string) ([]domain.ToolRecord, error)
+	CreateRecord(ctx context.Context, collectionID string, req CreateToolRecordRequest) (domain.ToolRecord, error)
+	UpdateRecord(ctx context.Context, collectionID, recordID string, req UpdateToolRecordRequest) (domain.ToolRecord, error)
 	DeleteRecord(ctx context.Context, collectionID, recordID string) error
 }
 
@@ -95,22 +95,22 @@ type CreateRetrievalDocumentRequest struct {
 	Filename string `json:"filename"`
 }
 
-type CreateMCPCollectionRequest struct {
+type CreateToolCollectionRequest struct {
 	Scope    domain.Scope `json:"scope"`
 	TenantID string       `json:"tenant_id,omitempty"`
 	Name     string       `json:"name"`
 }
 
-type UpdateMCPCollectionRequest struct {
+type UpdateToolCollectionRequest struct {
 	Name *string `json:"name,omitempty"`
 }
 
-type CreateMCPRecordRequest struct {
+type CreateToolRecordRequest struct {
 	Key   string `json:"key"`
 	Value string `json:"value"`
 }
 
-type UpdateMCPRecordRequest struct {
+type UpdateToolRecordRequest struct {
 	Key   *string `json:"key,omitempty"`
 	Value *string `json:"value,omitempty"`
 }
@@ -121,14 +121,14 @@ type CreateAssistantRequest struct {
 	Name                   string       `json:"name"`
 	ProviderID             string       `json:"provider_id"`
 	RetrievalCollectionIDs []string     `json:"retrieval_collection_ids,omitempty"`
-	MCPCollectionIDs       []string     `json:"mcp_collection_ids,omitempty"`
+	ToolCollectionIDs      []string     `json:"tools_collection_ids,omitempty"`
 }
 
 type UpdateAssistantRequest struct {
 	Name                   *string   `json:"name,omitempty"`
 	ProviderID             *string   `json:"provider_id,omitempty"`
 	RetrievalCollectionIDs *[]string `json:"retrieval_collection_ids,omitempty"`
-	MCPCollectionIDs       *[]string `json:"mcp_collection_ids,omitempty"`
+	ToolCollectionIDs      *[]string `json:"tools_collection_ids,omitempty"`
 }
 
 type CloneAssistantRequest struct {
