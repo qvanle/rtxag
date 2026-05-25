@@ -1,7 +1,6 @@
 package handlers
 
 import (
-	"bytes"
 	"encoding/json"
 	"fmt"
 	"io"
@@ -222,34 +221,26 @@ func (h *Handler) PlaygroundChatCompletion(w http.ResponseWriter, r *http.Reques
 		return
 	}
 
-	origin := strings.TrimRight(h.deps.LLMHubOrigin, "/")
-	baseURL, err := url.Parse(origin)
-	if err != nil {
-		response.Error(w, 500, "llmhub_origin_invalid", err.Error(), nil)
+	assistantID, _ := payload["assistant_id"].(string)
+	delete(payload, "assistant_id")
+	if strings.TrimSpace(assistantID) != "" {
+		body, err := h.runToolChatCompletion(r, payload, assistantID)
+		if err != nil {
+			response.Error(w, 422, "tool_chat_completion_failed", err.Error(), nil)
+			return
+		}
+		w.Header().Set("Content-Type", "application/json")
+		w.WriteHeader(http.StatusOK)
+		_, _ = w.Write(body)
 		return
 	}
 
-	reqURL := *baseURL
-	reqURL.Path = strings.TrimRight(baseURL.Path, "/") + "/v1/chat_completion"
-
-	body, _ := json.Marshal(payload)
-	req, err := http.NewRequestWithContext(r.Context(), http.MethodPost, reqURL.String(), bytes.NewReader(body))
+	status, body, headers, err := h.postLlmhubJSON(r.Context(), r.Header, "/v1/chat_completion", payload)
 	if err != nil {
-		response.Error(w, 500, "llmhub_proxy_request_failed", err.Error(), nil)
+		response.Error(w, 502, "llmhub_proxy_request_failed", err.Error(), nil)
 		return
 	}
-	req.Header = r.Header.Clone()
-	req.Header.Set("content-type", "application/json")
-	req.Host = baseURL.Host
-
-	resp, err := http.DefaultClient.Do(req)
-	if err != nil {
-		response.Error(w, 502, "llmhub_unavailable", err.Error(), nil)
-		return
-	}
-	defer resp.Body.Close()
-
-	for key, values := range resp.Header {
+	for key, values := range headers {
 		if strings.EqualFold(key, "Content-Length") || strings.EqualFold(key, "Transfer-Encoding") {
 			continue
 		}
@@ -257,6 +248,6 @@ func (h *Handler) PlaygroundChatCompletion(w http.ResponseWriter, r *http.Reques
 			w.Header().Add(key, value)
 		}
 	}
-	w.WriteHeader(resp.StatusCode)
-	_, _ = io.Copy(w, resp.Body)
+	w.WriteHeader(status)
+	_, _ = w.Write(body)
 }

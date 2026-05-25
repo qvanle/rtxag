@@ -20,6 +20,16 @@ type AssistantOption = Assistant & {
   tenant_label: string;
 };
 
+type ToolTraceItem = {
+  id: string;
+  name: string;
+  method: string;
+  url: string;
+  status_code: number;
+  response: string;
+  error?: string;
+};
+
 type TargetMode = "agent" | "model";
 
 function PlaygroundPage() {
@@ -52,6 +62,7 @@ function PlaygroundPage() {
   const [draft, setDraft] = useState("");
   const [messages, setMessages] = useState<ChatMessage[]>([]);
   const [responseMeta, setResponseMeta] = useState<{ finish_reason?: string; input_tokens?: number; output_tokens?: number } | null>(null);
+  const [toolTrace, setToolTrace] = useState<ToolTraceItem[]>([]);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
 
@@ -136,6 +147,7 @@ function PlaygroundPage() {
   const resetConversation = () => {
     setMessages([]);
     setResponseMeta(null);
+    setToolTrace([]);
     setDraft("");
     setError("");
   };
@@ -160,6 +172,7 @@ function PlaygroundPage() {
         model_schema_id: selectedSchemaId,
         provider_model_id: activeSchema?.provider_model_id ?? undefined,
         messages: requestMessages,
+        assistant_id: mode === "agent" ? selectedAssistant?.id : undefined,
       });
       const assistantText = result.message.content ?? "";
       setMessages((current) => [
@@ -172,6 +185,7 @@ function PlaygroundPage() {
         input_tokens: result.usage.input_tokens,
         output_tokens: result.usage.output_tokens,
       });
+      setToolTrace(result.tool_trace ?? []);
       setDraft("");
     } catch (err) {
       setError(err instanceof Error ? err.message : "Inference failed");
@@ -256,6 +270,30 @@ function PlaygroundPage() {
                 <div className="whitespace-pre-wrap text-sm leading-6">{message.content}</div>
               </div>
             ))
+          )}
+
+          {toolTrace.length > 0 && (
+            <div className="rounded-2xl border border-glass-border bg-background/40 p-4">
+              <div className="text-xs uppercase tracking-wider text-muted-foreground">Tool Trace</div>
+              <div className="mt-3 space-y-2">
+                {toolTrace.map((item) => (
+                  <div key={item.id} className="rounded-xl border border-glass-border bg-background/60 p-3">
+                    <div className="flex items-center justify-between gap-3">
+                      <div className="min-w-0">
+                        <div className="font-medium text-sm truncate">{item.name}</div>
+                        <div className="text-xs text-muted-foreground truncate">{item.method} {item.url}</div>
+                      </div>
+                      <div className="text-xs text-muted-foreground tabular-nums">
+                        {item.error ? "error" : `HTTP ${item.status_code}`}
+                      </div>
+                    </div>
+                    <pre className="mt-2 max-h-40 overflow-auto whitespace-pre-wrap break-words rounded-lg bg-muted/40 p-2 text-xs text-foreground/80">
+                      {item.error ? item.error : item.response}
+                    </pre>
+                  </div>
+                ))}
+              </div>
+            </div>
           )}
         </div>
 

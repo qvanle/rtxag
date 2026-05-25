@@ -169,6 +169,10 @@ func (h *Handler) CreateToolRecord(w http.ResponseWriter, r *http.Request) {
 	if !decodeJSON(w, r, &req) {
 		return
 	}
+	if err := validateToolDescriptorJSON(req.Value); err != nil {
+		response.Error(w, 422, "invalid_tool_descriptor", err.Error(), nil)
+		return
+	}
 	row, err := h.deps.Tools.CreateRecord(r.Context(), chi.URLParam(r, "collection_id"), req)
 	if err != nil {
 		response.Error(w, 422, "create_tool_record_failed", err.Error(), nil)
@@ -180,6 +184,12 @@ func (h *Handler) UpdateToolRecord(w http.ResponseWriter, r *http.Request) {
 	var req application.UpdateToolRecordRequest
 	if !decodeJSON(w, r, &req) {
 		return
+	}
+	if req.Value != nil {
+		if err := validateToolDescriptorJSON(*req.Value); err != nil {
+			response.Error(w, 422, "invalid_tool_descriptor", err.Error(), nil)
+			return
+		}
 	}
 	row, err := h.deps.Tools.UpdateRecord(r.Context(), chi.URLParam(r, "collection_id"), chi.URLParam(r, "record_id"), req)
 	if err != nil {

@@ -47,6 +47,8 @@ services:
     depends_on:
       postgres:
         condition: service_healthy
+      tools:
+        condition: service_started
     env_file:
       - .env
     environment:
@@ -54,6 +56,7 @@ services:
       ROTEXAI_ORM_DSN: postgres://${POSTGRES_USER}:${POSTGRES_PASSWORD}@postgres:5432/${POSTGRES_DB}?sslmode=disable
       ADMIN_API_ADDR: :8080
       LLMHUB_ORIGIN: http://llmhub:8000
+      TOOLS_ORIGIN: http://tools:8090
     ports:
       - "${ADMIN_API_PORT}:8080"
     command: ["start"]
@@ -62,6 +65,26 @@ services:
       - frontend
       - backend
       - llmhub
+
+  tools:
+    build:
+      context: ..
+      dockerfile: codebase/tools/Dockerfile
+    container_name: rtxag-tools
+    privileged: true
+    restart: unless-stopped
+    env_file:
+      - .env
+    environment:
+      TOOLS_ADDR: :8090
+    healthcheck:
+      test: ["CMD-SHELL", "curl -fsS http://localhost:8090/healthz >/dev/null"]
+      interval: 10s
+      timeout: 5s
+      retries: 10
+    networks:
+      - backend
+      - frontend
 
   llmhub:
     build:

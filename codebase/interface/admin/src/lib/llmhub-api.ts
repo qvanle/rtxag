@@ -51,6 +51,15 @@ export type LlmhubChatCompletion = {
     output_tokens: number;
   };
   fallback_index?: number | null;
+  tool_trace?: Array<{
+    id: string;
+    name: string;
+    method: string;
+    url: string;
+    status_code: number;
+    response: string;
+    error?: string;
+  }>;
 };
 
 const LLMHUB_ORIGIN = (import.meta.env.VITE_LLMHUB_ORIGIN as string | undefined) ?? "/api/admin/playground/llmhub";
@@ -94,6 +103,7 @@ export const llmhubApi = {
     model_schema_id: string;
     provider_model_id?: string;
     messages: LlmhubChatMessage[];
+    assistant_id?: string;
     stream?: boolean;
     credentials?: Record<string, unknown>;
     encrypted_credentials?: Record<string, unknown>;

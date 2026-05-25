@@ -39,6 +39,7 @@ func NewApp() (*App, error) {
 		Tools:        inMemory.Tools,
 		Assistant:    inMemory.Assistant,
 		LLMHubOrigin: cfg.LLMHub.Origin,
+		ToolsOrigin:  cfg.Tools.Origin,
 	})
 
 	server := &http.Server{

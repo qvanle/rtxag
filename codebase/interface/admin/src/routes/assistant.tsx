@@ -39,7 +39,7 @@ function AssistantsPage() {
     name: "",
     provider_id: "",
     retrieval_collection_id: "",
-    tools_collection_id: "",
+    tools_collection_ids: [] as string[],
   });
   const tenantsQuery = useAdminQuery(["assistants", "tenants"], adminApi.listTenants);
   const providersQuery = useAdminQuery(["assistants", "providers"], adminApi.listProviders);
@@ -86,7 +86,7 @@ function AssistantsPage() {
   const onCreate = () => {
     const provider_id = form.provider_id.trim();
     const retrieval_collection_ids = form.retrieval_collection_id ? [form.retrieval_collection_id] : [];
-    const tools_collection_ids = form.tools_collection_id ? [form.tools_collection_id] : [];
+    const tools_collection_ids = form.tools_collection_ids.filter(Boolean);
     if (!provider_id) {
       window.alert("provider_id is required");
       return;
@@ -108,7 +108,7 @@ function AssistantsPage() {
       {
         onSuccess: () => {
           setIsCreateOpen(false);
-          setForm({ scope: "global", tenant_id: "", name: "", provider_id: "", retrieval_collection_id: "", tools_collection_id: "" });
+          setForm({ scope: "global", tenant_id: "", name: "", provider_id: "", retrieval_collection_id: "", tools_collection_ids: [] });
         },
       },
     );
@@ -174,12 +174,22 @@ function AssistantsPage() {
                 <option key={r.id} value={r.id}>{r.name} ({r.tenant_id ?? "Global"})</option>
               ))}
             </select>
-            <select className="h-10 rounded-md border border-glass-border bg-background px-3 text-sm" value={form.tools_collection_id} onChange={(e) => setForm((v) => ({ ...v, tools_collection_id: e.target.value }))}>
-              <option value="">Select tool collection (optional)</option>
+            <select
+              multiple
+              className="min-h-28 rounded-md border border-glass-border bg-background px-3 py-2 text-sm"
+              value={form.tools_collection_ids}
+              onChange={(e) => setForm((v) => ({
+                ...v,
+                tools_collection_ids: Array.from(e.currentTarget.selectedOptions).map((option) => option.value),
+              }))}
+            >
               {(toolsOptionsQuery.data ?? []).map((tc) => (
                 <option key={tc.id} value={tc.id}>{tc.name} ({tc.tenant_id ?? "Global"})</option>
               ))}
             </select>
+            <div className="text-xs text-muted-foreground">
+              Hold Cmd/Ctrl to select multiple tool collections.
+            </div>
           </div>
           <DialogFooter>
             <ActionButton variant="ghost" onClick={() => setIsCreateOpen(false)}>Cancel</ActionButton>

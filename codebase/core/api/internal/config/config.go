@@ -11,6 +11,7 @@ type Config struct {
 	HTTP   HTTPConfig
 	DB     DBConfig
 	LLMHub LLMHubConfig
+	Tools  ToolsConfig
 }
 
 type HTTPConfig struct {
@@ -28,6 +29,10 @@ type LLMHubConfig struct {
 	Origin string
 }
 
+type ToolsConfig struct {
+	Origin string
+}
+
 func Load() (Config, error) {
 	cfg := Config{
 		HTTP: HTTPConfig{
@@ -41,6 +46,9 @@ func Load() (Config, error) {
 		},
 		LLMHub: LLMHubConfig{
 			Origin: getOrDefault("LLMHUB_ORIGIN", "http://llmhub:8000"),
+		},
+		Tools: ToolsConfig{
+			Origin: getOrDefault("TOOLS_ORIGIN", "http://tools:8090"),
 		},
 	}
 

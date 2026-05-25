@@ -10,4 +10,5 @@ type Deps struct {
 	Tools        application.ToolsService
 	Assistant    application.AssistantService
 	LLMHubOrigin string
+	ToolsOrigin  string
 }
